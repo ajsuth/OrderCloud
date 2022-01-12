@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using Sitecore.Commerce.Plugin.Catalog;
 using System.Collections.Generic;
 using Ajsuth.Sample.OrderCloud.Engine.Models;
+using Ajsuth.Sample.OrderCloud.Engine.FrameworkExtensions;
 
 namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 {
@@ -42,11 +43,13 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             Condition.Requires(arg.EntityId).IsNotNull($"{Name}: The entity id cannot be null.");
 
             var exportResult = context.CommerceContext.GetObject<ExportResult>();
+            var problemObjects = context.CommerceContext.GetObject<ProblemObjects>();
 
             var sellableItem = await Commander.Pipeline<FindEntityPipeline>().RunAsync(new FindEntityArgument(typeof(SellableItem), arg.EntityId), context).ConfigureAwait(false) as SellableItem;
             if (sellableItem == null)
             {
                 exportResult.Products.ItemsErrored++;
+                problemObjects.Products.Add(sellableItem.FriendlyId.ToValidOrderCloudId());
 
                 context.Abort(
                     await context.CommerceContext.AddMessage(
@@ -66,6 +69,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             if (sellableItem.IsBundle)
             {
                 exportResult.Products.ItemsSkipped++;
+                problemObjects.Products.Add(sellableItem.FriendlyId.ToValidOrderCloudId());
 
                 context.Abort(
                     await context.CommerceContext.AddMessage(
@@ -81,6 +85,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             if (!sellableItem.Published)
             {
                 exportResult.Products.ItemsSkipped++;
+                problemObjects.Products.Add(sellableItem.FriendlyId.ToValidOrderCloudId());
 
                 context.Abort(
                     await context.CommerceContext.AddMessage(
@@ -95,6 +100,8 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
             if (!(await ValidateVariants(sellableItem, context, exportResult)))
             {
+                problemObjects.Products.Add(sellableItem.FriendlyId.ToValidOrderCloudId());
+
                 return null;
             }
 

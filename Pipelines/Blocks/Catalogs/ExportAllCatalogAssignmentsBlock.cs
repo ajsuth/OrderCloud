@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="ExportSellableItemsBlock.cs" company="Sitecore Corporation">
+// <copyright file="ExportAllCatalogAssignmentsBlock.cs" company="Sitecore Corporation">
 //   Copyright (c) Sitecore Corporation 1999-2022
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -7,7 +7,6 @@
 using Ajsuth.Sample.OrderCloud.Engine.Models;
 using Ajsuth.Sample.OrderCloud.Engine.Pipelines.Arguments;
 using Microsoft.Extensions.Logging;
-using OrderCloud.SDK;
 using Sitecore.Commerce.Core;
 using Sitecore.Commerce.Plugin.Catalog;
 using Sitecore.Framework.Conditions;
@@ -15,21 +14,22 @@ using Sitecore.Framework.Pipelines;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using OrderCloudClient = OrderCloud.SDK.OrderCloudClient;
 
 namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 {
-    /// <summary>Defines the asynchronous executing ExportSellableItems pipeline block</summary>
+    /// <summary>Defines the asynchronous executing ExportAllCatalogAssignments pipeline block</summary>
     /// <seealso cref="AsyncPipelineBlock{TInput, TOutput, TContext}" />
-    [PipelineDisplayName(OrderCloudConstants.Pipelines.Blocks.ExportSellableItems)]
-    public class ExportSellableItemsBlock : AsyncPipelineBlock<ExportToOrderCloudArgument, ExportToOrderCloudArgument, CommercePipelineExecutionContext>
+    [PipelineDisplayName(OrderCloudConstants.Pipelines.Blocks.ExportAllCatalogAssignments)]
+    public class ExportAllCatalogAssignmentsBlock : AsyncPipelineBlock<ExportToOrderCloudArgument, ExportToOrderCloudArgument, CommercePipelineExecutionContext>
     {
         /// <summary>Gets or sets the commander.</summary>
         /// <value>The commander.</value>
         protected CommerceCommander Commander { get; set; }
 
-        /// <summary>Initializes a new instance of the <see cref="ExportSellableItemsBlock" /> class.</summary>
+        /// <summary>Initializes a new instance of the <see cref="ExportAllCatalogAssignmentsBlock" /> class.</summary>
         /// <param name="commander">The commerce commander.</param>
-        public ExportSellableItemsBlock(CommerceCommander commander)
+        public ExportAllCatalogAssignmentsBlock(CommerceCommander commander)
         {
             this.Commander = commander;
         }
@@ -42,17 +42,17 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
         {
             Condition.Requires(arg).IsNotNull($"{Name}: The argument can not be null");
 
-            if (!arg.ProcessSettings.ProcessProducts)
+            if (!arg.ProcessSettings.ProcessCatalogAssignments)
             {
-                context.Logger.LogInformation($"Skipping product export - not enabled.");
+                context.Logger.LogInformation($"Skipping catalog assignment export - not enabled.");
                 return arg;
             }
 
             long itemsProcessed = 0;
 
-            var listName = OrderCloudConstants.Lists.SellableItems;
+            var listName = OrderCloudConstants.Lists.Catalogs;
 
-            var items = await GetListIds<SellableItem>(context, listName, int.MaxValue).ConfigureAwait(false);
+            var items = await GetListIds<Catalog>(context, listName, int.MaxValue).ConfigureAwait(false);
             var listCount = items.List.TotalItemCount;
 
             context.Logger.LogInformation($"{Name}-Reviewing List:{listName}|Count:{listCount}|Environment:{context.CommerceContext.Environment.Name}");
@@ -66,6 +66,11 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
             foreach (var entityId in items.EntityReferences.Select(e => e.EntityId))
             {
+                if (!arg.CatalogSettings.Any(p => p.CatalogName.ToEntityId<Catalog>() == entityId))
+                {
+                    context.Logger.LogInformation($"{Name}-Catalog skipped: {entityId}. Environment: {context.CommerceContext.Environment.Name}");
+                }
+
                 var error = false;
 
                 var newContext = new CommercePipelineExecutionContextOptions(new CommerceContext(context.CommerceContext.Logger, context.CommerceContext.TelemetryClient)
@@ -84,31 +89,30 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
                 newContext.CommerceContext.AddObject(context.CommerceContext.GetObject<OrderCloudClient>());
                 newContext.CommerceContext.AddObject(context.CommerceContext.GetObject<ExportResult>());
-                newContext.CommerceContext.AddObject(context.CommerceContext.GetObject<ProblemObjects>());
 
-                context.Logger.LogDebug($"{Name}-Exporting sellable item: '{entityId}'. Environment: {context.CommerceContext.Environment.Name}");
-                await Commander.Pipeline<ExportSellableItemsPipeline>()
+                context.Logger.LogDebug($"{Name}-Exporting catalog assignment: '{entityId}'. Environment: {context.CommerceContext.Environment.Name}");
+                await Commander.Pipeline<ExportCatalogAssignmentsPipeline>()
                     .RunAsync(
                         new ExportEntitiesArgument(entityId, arg),
                         newContext)
                     .ConfigureAwait(false);
-
+                
                 if (error)
                 {
                     context.Abort(
                         await context.CommerceContext.AddMessage(
                             context.GetPolicy<KnownResultCodes>().Error,
-                            OrderCloudConstants.Errors.ExportSellableItemsFailed,
+                            OrderCloudConstants.Errors.ExportAllCatalogAssignmentsFailed,
                             new object[] { Name },
-                            $"{Name}: Export sellable items failed.").ConfigureAwait(false),
+                            $"{Name}: Export catalog assignments failed.").ConfigureAwait(false),
                         context);
                 }
             }
 
             var exportResult = context.CommerceContext.GetObject<ExportResult>();
-            exportResult.Products.ItemsProcessed = itemsProcessed;
+            exportResult.Catalogs.ItemsProcessed = itemsProcessed;
 
-            context.Logger.LogInformation($"{Name}-Exporting sellable items Completed: {(int)itemsProcessed}. Environment: {context.CommerceContext.Environment.Name}");
+            context.Logger.LogInformation($"{Name}-Exporting catalog assignments Completed: {(int)itemsProcessed}. Environment: {context.CommerceContext.Environment.Name}");
             return arg;
         }
 

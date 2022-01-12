@@ -19,6 +19,10 @@ This is sample plugin to migrate Sitecore Commerce data over into OrderCloud.
   * Pseudo-multi-currency support
 * Inventory Migration
 
+## Global
+
+* IDs will be updated to replace spaces with '\_'s._
+
 ## Customers
 
 * An overarching Buyer will be created from the customer domain, e.g. Storefront\\test@test.com will create Buyer - Storefront, and Buyer User - test@test.com.
@@ -26,7 +30,13 @@ This is sample plugin to migrate Sitecore Commerce data over into OrderCloud.
 
 ## Catalogs
 
-* Spaces are changed to '\_'s
+* Catalogs to be migrated will need a CatalogSetting configured in the export request.
+
+### CatalogSettings
+* **CatalogName:** The catalog name (FriendlyID) to be exported.
+* **DefaultBuyerId:** The buyer Id the catalog will be assigned to in OrderCloud. Assumes the Buyer has already been created. See Buyers.
+* **ShopName:** The name of the storefront item from Sitecore's Content Editor - _/sitecore/Commerce/Commerce Control Panel/Storefront Settings/Storefronts/\<storefront item\>__
+* **MultiCurrency:** If true, will create currency-specific buyer user groups, currency-specific price schedules, and price schedule assignments between the price schedules and user groups.
 
 ## Categories
 
@@ -41,7 +51,10 @@ This is sample plugin to migrate Sitecore Commerce data over into OrderCloud.
 
 ## Pricing
 
-* Sellable item List Prices are migrated to Price Schedules. For multi-currency implementations, currency-specific price schedules are assigned to currency-specific buyer groups. The individual users will need to be switched between these user groups to view the various currency pricing.
+* Sellable item List Prices are migrated to Price Schedules.
+  * Price Schedule IDs will use the associated product ID for easier identification.
+  * For multi-currency implementations, currency-specific price schedules will be created with Price Schedule IDs using the convention '_\<product ID\>\_\<currency code\>_'.
+    * Price schedules will be assigned to currency-specific buyer groups. Buyer users will be assigned to the default currency user group and the middleware will need to be implement functionality to switch the user to the respective user groups to utilise alternate currencies.
 * Price Books and Price Cards are not supported.
 
 ## Inventory
@@ -63,7 +76,9 @@ This is sample plugin to migrate Sitecore Commerce data over into OrderCloud.
 
 In order to create variants correctly, variation property validation and comparisons may need updating if your implementation uses properties other than the standard 'color' and 'size'.
 Areas that will need to be updated include:
-* ValidateSellableItemBlock.cs
+* SellableItemExtensions.RequiresVariantsForOrderCloud()
+* SellableItemExtensions.GetVariationSummary()
+* ValidateSellableItemBlock.ValidateVariants()
 * ExportSellableItemBlock.cs
 
 ## Installation Instructions

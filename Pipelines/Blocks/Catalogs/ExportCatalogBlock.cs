@@ -147,6 +147,8 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                     ViewAllProducts = true
                 };
 
+                exportResult.CatalogAssignments.ItemsProcessed++;
+
                 context.Logger.LogInformation($"Saving catalog assignment; Catalog ID: {catalog.ID}, Buyer ID: {buyerId}");
                 await client.Catalogs.SaveAssignmentAsync(catalogAssignment);
                 exportResult.CatalogAssignments.ItemsUpdated++;

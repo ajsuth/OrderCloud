@@ -25,12 +25,17 @@ namespace Ajsuth.Sample.OrderCloud.Engine
             public const string CreateCatalogFailed = nameof(CreateCatalogFailed);
 
             /// <summary>
+            /// The create catalog product assignment failed error name.
+            /// </summary>
+            public const string CreateCatalogProductAssignmentFailed = nameof(CreateCatalogProductAssignmentFailed);
+
+            /// <summary>
             /// The create category failed error name.
             /// </summary>
             public const string CreateCategoryFailed = nameof(CreateCategoryFailed);
 
             /// <summary>
-            /// The create category productassignment failed error name.
+            /// The create category product assignment failed error name.
             /// </summary>
             public const string CreateCategoryProductAssignmentFailed = nameof(CreateCategoryProductAssignmentFailed);
             
@@ -44,6 +49,11 @@ namespace Ajsuth.Sample.OrderCloud.Engine
             /// </summary>
             public const string CreateVariantsFailed = nameof(CreateVariantsFailed);
             
+            /// <summary>
+            /// The export all catalog assignments failed error name.
+            /// </summary>
+            public const string ExportAllCatalogAssignmentsFailed = nameof(ExportAllCatalogAssignmentsFailed);
+
             /// <summary>
             /// The export all category assignments failed error name.
             /// </summary>
@@ -142,6 +152,11 @@ namespace Ajsuth.Sample.OrderCloud.Engine
         public static class Pipelines
         {
             /// <summary>
+            /// The export catalog assignments pipeline name.
+            /// </summary>
+            public const string ExportCatalogAssignments = "OrderCloud.Pipeline.ExportCatalogAssignments";
+
+            /// <summary>
             /// The export catalogs pipeline name.
             /// </summary>
             public const string ExportCatalogs = "OrderCloud.Pipeline.ExportCatalogs";
@@ -152,7 +167,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine
             public const string ExportCategories = "OrderCloud.Pipeline.ExportCategories";
 
             /// <summary>
-            /// The export category assignmentspipeline name.
+            /// The export category assignments pipeline name.
             /// </summary>
             public const string ExportCategoryAssignments = "OrderCloud.Pipeline.ExportCategoryAssignments";
             
@@ -182,6 +197,11 @@ namespace Ajsuth.Sample.OrderCloud.Engine
                 public const string ConfigureOpsServiceApi = "OrderCloud.Block.ConfigureOpsServiceApi";
 
                 /// <summary>
+                /// The export all catalog assignments pipeline block name.
+                /// </summary>
+                public const string ExportAllCatalogAssignments = "OrderCloud.Block.ExportAllCatalogAssignments";
+
+                /// <summary>
                 /// The export all category assignments pipeline block name.
                 /// </summary>
                 public const string ExportAllCategoryAssignments = "OrderCloud.Block.ExportAllCategoryAssignments";
@@ -205,12 +225,17 @@ namespace Ajsuth.Sample.OrderCloud.Engine
                 /// The export category pipeline block name.
                 /// </summary>
                 public const string ExportCategory = "OrderCloud.Block.ExportCategory";
+                
+                /// <summary>
+                /// The export catalog assignments pipeline block name.
+                /// </summary>
+                public const string ExportCatalogAssignments = "OrderCloud.Block.ExportCatalogAssignments";
 
                 /// <summary>
                 /// The export category assignments pipeline block name.
                 /// </summary>
                 public const string ExportCategoryAssignments = "OrderCloud.Block.ExportCategoryAssignments";
-                
+
                 /// <summary>
                 /// The export customer pipeline block name.
                 /// </summary>

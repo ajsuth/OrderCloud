@@ -21,8 +21,8 @@ using Ajsuth.Sample.OrderCloud.Engine.Models;
 using Microsoft.Extensions.Logging;
 using Sitecore.Commerce.Plugin.Carts;
 using Sitecore.Commerce.Plugin.Pricing;
-using Sitecore.Commerce.Plugin.Shops;
 using Ajsuth.Sample.OrderCloud.Engine.Pipelines.Arguments;
+using System.Dynamic;
 
 namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 {
@@ -52,15 +52,16 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
             var client = context.CommerceContext.GetObject<OrderCloudClient>();
             var exportResult = context.CommerceContext.GetObject<ExportResult>();
+            var problemObjects = context.CommerceContext.GetObject<ProblemObjects>();
 
             var variationPropertyPolicy = context.GetPolicy<VariationPropertyPolicy>();
             // Use reflection to identify property names? It's probably more practical just to code in the variation comparisons
             // variationPropertyPolicy.PropertyNames
 
-            //for variations DisplayPropertiesComponent
             var requiresVariants = sellableItem.RequiresVariantsForOrderCloud();
             var productSettings = context.CommerceContext.GetObject<ExportEntitiesArgument>().ProductSettings;
-            var product = await GetOrCreateProduct(client, sellableItem, requiresVariants, productSettings, context, exportResult);
+
+            var product = await GetOrCreateProduct(client, sellableItem, requiresVariants, productSettings, context, exportResult, problemObjects);
             if (product == null)
             {
                 return null;
@@ -71,7 +72,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 return sellableItem;
             }
 
-            var variants = await GetOrCreateVariants(client, sellableItem, product, context, exportResult);
+            var variants = await GetOrCreateVariants(client, sellableItem, product, productSettings, context, exportResult);
             if (variants == null)
             {
                 return null;
@@ -80,7 +81,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             return sellableItem;
         }
 
-        protected async Task<Product> GetOrCreateProduct(OrderCloudClient client, SellableItem sellableItem, bool requiresVariants, SellableItemExportPolicy productSettings, CommercePipelineExecutionContext context, ExportResult exportResult)
+        protected async Task<Product> GetOrCreateProduct(OrderCloudClient client, SellableItem sellableItem, bool requiresVariants, SellableItemExportPolicy productSettings, CommercePipelineExecutionContext context, ExportResult exportResult, ProblemObjects problemObjects)
         {
             var productId = sellableItem.FriendlyId.ToValidOrderCloudId();
             try
@@ -175,6 +176,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                     catch (Exception e)
                     {
                         exportResult.Catalogs.ItemsErrored++;
+                        problemObjects.Products.Add(productId);
 
                         context.Abort(
                             await context.CommerceContext.AddMessage(
@@ -196,6 +198,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 else
                 {
                     exportResult.Catalogs.ItemsErrored++;
+                    problemObjects.Products.Add(productId);
 
                     context.Abort(
                         await context.CommerceContext.AddMessage(
@@ -216,7 +219,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             }
         }
 
-        protected async Task<List<Variant>> GetOrCreateVariants(OrderCloudClient client, SellableItem sellableItem, Product product, CommercePipelineExecutionContext context, ExportResult exportResult)
+        protected async Task<List<Variant>> GetOrCreateVariants(OrderCloudClient client, SellableItem sellableItem, Product product, SellableItemExportPolicy productSettings, CommercePipelineExecutionContext context, ExportResult exportResult)
         {
             try
             {
@@ -294,7 +297,6 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 do
                 {
                     pagedVariants = await client.Products.ListVariantsAsync(product.ID, page: page++);
-                    var exportPolicy = context.GetPolicy<SellableItemExportPolicy>();
                     foreach (var variant in pagedVariants.Items)
                     {
                         exportResult.Variants.ItemsProcessed++;
@@ -306,17 +308,18 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
                             var xcVariant = sellableItem.GetVariation(matchingVariant.Id);
                             var displayProperties = xcVariant.GetChildComponent<DisplayPropertiesComponent>();
+
                             var updatedVariant = new PartialVariant
                             {
                                 ID = matchingVariant.Id,
                                 Active = !xcVariant.Disabled,
                                 Description = displayProperties.DisambiguatingDescription
                             };
-
+                            updatedVariant.xp = new ExpandoObject();
                             updatedVariant.xp.Tags = xcVariant.Tags;
 
                             // 5a. Update variant inventory
-                            var inventory = await GetInventoryInformation(sellableItem, matchingVariant.Id, exportPolicy.InventorySetId, context);
+                            var inventory = await GetInventoryInformation(sellableItem, matchingVariant.Id, productSettings.InventorySetId, context);
                             if (inventory != null)
                             {
                                 updatedVariant.Inventory = new VariantInventory
@@ -490,6 +493,8 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
                 try
                 {
+                    exportResult.PriceSchedules.ItemsProcessed++;
+
                     context.Logger.LogInformation($"Saving price schedule; Price Schedule ID: {priceSchedule.ID}");
                     priceSchedule = await client.PriceSchedules.SaveAsync(priceSchedule.ID, priceSchedule);
                     exportResult.PriceSchedules.ItemsUpdated++;

@@ -45,6 +45,11 @@ namespace Ajsuth.Sample.OrderCloud.Engine
                     .Add<ExportCatalogBlock>()
                 )
 
+                .AddPipeline<IExportCatalogAssignmentsPipeline, ExportCatalogAssignmentsPipeline>(pipeline => pipeline
+                    .Add<ValidateCatalogBlock>()
+                    .Add<ExportCatalogAssignmentsBlock>()
+                )
+
                 .AddPipeline<IExportCategoriesPipeline, ExportCategoriesPipeline>(pipeline => pipeline
                     .Add<ValidateCategoryBlock>()
                     .Add<ExportCategoryBlock>()
@@ -68,6 +73,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine
                     .Add<ExportCategoriesBlock>()
                     .Add<ExportSellableItemsBlock>()
                     .Add<ExportAllCategoryAssignmentsBlock>()
+                    .Add<ExportAllCatalogAssignmentsBlock>()
                 )
 
             );

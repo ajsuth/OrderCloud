@@ -16,10 +16,11 @@ using Category = Sitecore.Commerce.Plugin.Catalog.Category;
 using Sitecore.Commerce.Plugin.Catalog;
 using System.Linq;
 using Ajsuth.Sample.OrderCloud.Engine.Models;
+using System.Net;
 
 namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 {
-    /// <summary>Defines the asynchronous executing ExportCategory pipeline block</summary>
+    /// <summary>Defines the asynchronous executing ExportCategoryAssignments pipeline block</summary>
     /// <seealso cref="AsyncPipelineBlock{TInput, TOutput, TContext}" />
     [PipelineDisplayName(OrderCloudConstants.Pipelines.Blocks.ExportCategoryAssignments)]
     public class ExportCategoryAssignmentsBlock : AsyncPipelineBlock<Category, Category, CommercePipelineExecutionContext>
@@ -28,7 +29,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
         /// <value>The commander.</value>
         protected CommerceCommander Commander { get; set; }
 
-        /// <summary>Initializes a new instance of the <see cref="ExportCustomerBlock" /> class.</summary>
+        /// <summary>Initializes a new instance of the <see cref="ExportCategoryAssignmentsBlock" /> class.</summary>
         /// <param name="commander">The commerce commander.</param>
         public ExportCategoryAssignmentsBlock(CommerceCommander commander)
         {
@@ -132,9 +133,21 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 return;
             }
 
+            var problemObjects = context.CommerceContext.GetObject<ProblemObjects>();
+
             foreach (var reference in categoryDependencies.EntityReferences)
             {
                 var productId = reference.EntityId.RemoveIdPrefix<SellableItem>().ToValidOrderCloudId();
+
+                exportResult.CategoryProductAssignments.ItemsProcessed++;
+
+                // TODO: Validate if the product has previously errored or been skipped to avoid invalid calls to OrderCloud
+                if (problemObjects.Products.Contains(productId))
+                {
+                    context.Logger.LogInformation($"Skipping category product assignment as product is in problem list; Catalog ID: {catalogId}, Category ID: {categoryId}, Product ID: {productId}");
+                    exportResult.CategoryProductAssignments.ItemsSkipped++;
+                    continue;
+                }
 
                 try
                 {
@@ -144,31 +157,40 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                         ProductID = productId
                     };
 
-                    exportResult.CategoryProductAssignments.ItemsProcessed++;
-
-                    context.Logger.LogInformation($"Saving category product assignment; Catalog ID: {catalogId}, Category ID: {categoryId}");
+                    context.Logger.LogInformation($"Saving category product assignment; Catalog ID: {catalogId}, Category ID: {categoryId}, Product ID: {productId}");
                     await client.Categories.SaveProductAssignmentAsync(catalogId, categoryProductAssignment);
                     exportResult.CategoryProductAssignments.ItemsUpdated++;
                 }
-                catch (Exception ex)
+                catch (OrderCloudException ex)
                 {
-                    exportResult.CategoryProductAssignments.ItemsErrored++;
+                    if (ex.HttpStatus == HttpStatusCode.NotFound) // Object does not exist
+                    {
+                        exportResult.CategoryProductAssignments.ItemsErrored++;
 
-                    context.Abort(
-                        await context.CommerceContext.AddMessage(
-                            context.GetPolicy<KnownResultCodes>().Error,
-                            OrderCloudConstants.Errors.CreateCategoryProductAssignmentFailed,
-                            new object[]
-                            {
+                        context.Logger.LogError($"Error saving category product assignment. One or more objects not found; Catalog ID: {catalogId}, Category ID: {categoryId}, Product ID: {productId}");
+
+                        return;
+                    }
+                    else
+                    {
+                        exportResult.CategoryProductAssignments.ItemsErrored++;
+
+                        context.Abort(
+                            await context.CommerceContext.AddMessage(
+                                context.GetPolicy<KnownResultCodes>().Error,
+                                OrderCloudConstants.Errors.CreateCategoryProductAssignmentFailed,
+                                new object[]
+                                {
                                     Name,
                                     categoryId,
                                     ex.Message,
                                     ex
-                            },
-                            $"{Name}: Ok| Create category product assignment '{category.FriendlyId}' failed.\n{ex.Message}\n{ex}").ConfigureAwait(false),
-                        context);
+                                },
+                                $"{Name}: Ok| Create category product assignment '{category.FriendlyId}' failed.\n{ex.Message}\n{ex}").ConfigureAwait(false),
+                            context);
 
-                    return;
+                        return;
+                    }
                 }
             }
         }

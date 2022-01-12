@@ -44,7 +44,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
             if (!arg.ProcessSettings.ProcessCatalogs)
             {
-                context.Logger.LogInformation($"Skipping customer export - not enabled.");
+                context.Logger.LogInformation($"Skipping catalog export - not enabled.");
                 return arg;
             }
 

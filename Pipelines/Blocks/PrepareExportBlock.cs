@@ -60,6 +60,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
             context.CommerceContext.AddUniqueEntityByType(shop);
 
+            context.CommerceContext.AddObject(new ProblemObjects());
             context.CommerceContext.AddObject(new ExportResult());
 
             return arg;

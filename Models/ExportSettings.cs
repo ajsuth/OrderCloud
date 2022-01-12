@@ -38,14 +38,14 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Models
         public bool ProcessProducts { get; set; } = false;
 
         /// <summary>
+        /// Flag to export catalog assignments data to OrderCloud
+        /// </summary>
+        public bool ProcessCatalogAssignments { get; set; } = false;
+
+        /// <summary>
         /// Flag to export category assignments data to OrderCloud
         /// </summary>
         public bool ProcessCategoryAssignments { get; set; } = false;
-
-        /// <summary>
-        /// Flag to export catalog product and category product assignments data to OrderCloud
-        /// </summary>
-        public bool ProcessProductAssignments { get; set; } = false;
 
         /// <summary>
         /// Flag to export product relationship data to OrderCloud
