@@ -89,6 +89,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
                 newContext.CommerceContext.AddObject(context.CommerceContext.GetObject<OrderCloudClient>());
                 newContext.CommerceContext.AddObject(context.CommerceContext.GetObject<ExportResult>());
+                newContext.CommerceContext.AddObject(context.CommerceContext.GetObject<ProblemObjects>());
 
                 context.Logger.LogDebug($"{Name}-Exporting catalog assignment: '{entityId}'. Environment: {context.CommerceContext.Environment.Name}");
                 await Commander.Pipeline<ExportCatalogAssignmentsPipeline>()

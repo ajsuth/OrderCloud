@@ -44,6 +44,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
             if (!arg.ProcessSettings.ProcessCustomers)
             {
+                context.Logger.LogInformation($"Skipping customer export - not enabled.");
                 return arg;
             }
 
