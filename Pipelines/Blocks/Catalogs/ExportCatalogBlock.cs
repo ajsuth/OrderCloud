@@ -64,7 +64,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
         protected async Task<OCCatalog> GetOrCreateCatalog(OrderCloudClient client, Catalog catalog, CommercePipelineExecutionContext context, ExportResult exportResult)
         {
-            var catalogId = catalog.Name.ToValidOrderCloudId();
+            var catalogId = catalog.FriendlyId.ToValidOrderCloudId();
             try
             {
                 var ocCatalog = await client.Catalogs.GetAsync(catalogId);
@@ -152,8 +152,6 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 context.Logger.LogInformation($"Saving catalog assignment; Catalog ID: {catalog.ID}, Buyer ID: {buyerId}");
                 await client.Catalogs.SaveAssignmentAsync(catalogAssignment);
                 exportResult.CatalogAssignments.ItemsUpdated++;
-
-                return;
             }
             catch (Exception ex)
             {

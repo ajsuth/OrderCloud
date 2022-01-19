@@ -17,8 +17,8 @@
     <PackageReference Include="Sitecore.Commerce.Core" Version="7.0.*" />
     <PackageReference Include="Sitecore.Commerce.Plugin.Customers" Version="7.0.*" />
     <PackageReference Include="Sitecore.Commerce.Plugin.Inventory" Version="7.0.*" />
-    <PackageReference Include="ordercloud-dotnet-catalyst" Version="1.2.*" />
-    <PackageReference Include="OrderCloud.SDK" Version="0.10.*" />
+    <PackageReference Include="ordercloud-dotnet-catalyst" Version="1.5.*" />
+    <PackageReference Include="OrderCloud.SDK" Version="0.10.5" />
   </ItemGroup>
    
   <ItemGroup>

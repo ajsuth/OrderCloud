@@ -15,6 +15,11 @@ namespace Ajsuth.Sample.OrderCloud.Engine
         public static class Errors
         {
             /// <summary>
+            /// The create admin address failed error name.
+            /// </summary>
+            public const string CreateAdminAddressFailed = nameof(CreateAdminAddressFailed);
+
+            /// <summary>
             /// The create buyer failed error name.
             /// </summary>
             public const string CreateBuyerFailed = nameof(CreateBuyerFailed);
@@ -78,6 +83,11 @@ namespace Ajsuth.Sample.OrderCloud.Engine
             /// The export sellable items failed error name.
             /// </summary>
             public const string ExportSellableItemsFailed = nameof(ExportSellableItemsFailed);
+            
+            /// <summary>
+            /// The get admin address failed error name.
+            /// </summary>
+            public const string GetAdminAddressFailed = nameof(GetAdminAddressFailed);
 
             /// <summary>
             /// The get buyer failed error name.

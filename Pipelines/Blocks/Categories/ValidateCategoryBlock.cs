@@ -13,6 +13,7 @@ using Sitecore.Framework.Pipelines;
 using System.Threading.Tasks;
 using Sitecore.Commerce.Plugin.Catalog;
 using Ajsuth.Sample.OrderCloud.Engine.Models;
+using System.Linq;
 
 namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 {
@@ -62,6 +63,22 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             context.CommerceContext.AddUniqueObjectByType(arg);
 
             context.Logger.LogDebug($"{Name}: Validating category '{category.Id}'");
+
+            var catalogId = category.FriendlyId.Split("-")[0];
+            if (!arg.CatalogSettings.Any(c => c.CatalogName == catalogId))
+            {
+                exportResult.Categories.ItemsSkipped++;
+
+                context.Abort(
+                    await context.CommerceContext.AddMessage(
+                        context.GetPolicy<KnownResultCodes>().Information,
+                        "CategoryNotInSelectedCatalog",
+                        new object[] { catalogId },
+                        $"Ok| Category '{category.FriendlyId}' belongs to catalog '{catalogId}', which has not been selected for migration.").ConfigureAwait(false),
+                    context);
+
+                return null;
+            }
 
             if (!category.Published)
             {

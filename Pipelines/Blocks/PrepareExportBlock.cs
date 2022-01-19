@@ -41,29 +41,29 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             Condition.Requires(arg).IsNotNull($"{Name}: The argument can not be null");
 
             // Shop probably not needed
-            var shop = await Commander.Command<GetShopCommand>().Process(context.CommerceContext, context.CommerceContext.CurrentShopName());
+            //var shop = await Commander.Command<GetShopCommand>().Process(context.CommerceContext, context.CommerceContext.CurrentShopName());
 
-            if (shop == null)
-            {
-                context.Abort(
-                    await context.CommerceContext.AddMessage(
-                        context.GetPolicy<KnownResultCodes>().Error,
-                        OrderCloudConstants.Errors.ShopNotFound,
-                        new object[]
-                        {
-                            Name,
-                            context.CommerceContext.CurrentShopName()
-                        },
-                        $"{Name}: Shop '{context.CommerceContext.CurrentShopName()}' not found.").ConfigureAwait(false),
-                    context);
-            }
+            //if (shop == null)
+            //{
+            //    context.Abort(
+            //        await context.CommerceContext.AddMessage(
+            //            context.GetPolicy<KnownResultCodes>().Error,
+            //            OrderCloudConstants.Errors.ShopNotFound,
+            //            new object[]
+            //            {
+            //                Name,
+            //                context.CommerceContext.CurrentShopName()
+            //            },
+            //            $"{Name}: Shop '{context.CommerceContext.CurrentShopName()}' not found.").ConfigureAwait(false),
+            //        context);
+            //}
 
-            context.CommerceContext.AddUniqueEntityByType(shop);
+            //context.CommerceContext.AddUniqueEntityByType(shop);
 
-            context.CommerceContext.AddObject(new ProblemObjects());
             context.CommerceContext.AddObject(new ExportResult());
+            context.CommerceContext.AddObject(new ProblemObjects());
 
-            return arg;
+            return await Task.FromResult(arg);
         }
     }
 }

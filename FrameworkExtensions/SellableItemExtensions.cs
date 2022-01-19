@@ -7,9 +7,11 @@ using Ajsuth.Sample.OrderCloud.Engine.Models;
 using Microsoft.Extensions.Logging;
 using Sitecore.Commerce.Core;
 using Sitecore.Commerce.EntityViews;
+using Sitecore.Commerce.Plugin.Availability;
 using Sitecore.Commerce.Plugin.Catalog;
 using Sitecore.Commerce.Plugin.Composer;
 using Sitecore.Commerce.Plugin.Views;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -183,6 +185,12 @@ namespace Ajsuth.Sample.OrderCloud.Engine.FrameworkExtensions
             }
 
             return variationsSummary;
+        }
+
+        public static bool IsPhysicalItem(this SellableItem sellableItem, CommercePipelineExecutionContext context)
+        {
+            var policy = context.GetPolicy<DigitalItemTagsPolicy>();
+            return sellableItem.Tags.FirstOrDefault(t => policy.TagList.Contains(t.Name, StringComparer.OrdinalIgnoreCase)) == null;
         }
     }
 }

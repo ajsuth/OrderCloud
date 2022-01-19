@@ -89,6 +89,11 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 {
                     newContext.CommerceContext.AddObject(buyer);
                 }
+                var securityProfiles = (context.CommerceContext.GetObjects<SecurityProfile>();
+                foreach (var securityProfile in securityProfiles)
+                {
+                    newContext.CommerceContext.AddObject(securityProfile);
+                }
 
                 context.Logger.LogDebug($"{Name}-Exporting customer: '{entityId}'. Environment: {context.CommerceContext.Environment.Name}");
                 await Commander.Pipeline<ExportCustomersPipeline>()
@@ -102,6 +107,11 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 foreach (var buyer in buyers)
                 {
                     context.CommerceContext.AddUniqueObject(buyer);
+                }
+                securityProfiles = newContext.CommerceContext.GetObjects<SecurityProfile>();
+                foreach (var securityProfile in securityProfiles)
+                {
+                    context.CommerceContext.AddUniqueObject(securityProfile);
                 }
 
                 if (error)

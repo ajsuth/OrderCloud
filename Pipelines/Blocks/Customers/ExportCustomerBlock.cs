@@ -16,6 +16,8 @@ using System.Net;
 using System.Threading.Tasks;
 using System.Linq;
 using Ajsuth.Sample.OrderCloud.Engine.Models;
+using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 {
@@ -52,6 +54,12 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             if (buyer == null)
             {
                 return null;
+            }
+
+            var securityProfile = await GetOrCreateSecurityProfile(client, buyerId, context, exportResult);
+            if (securityProfile != null)
+            {
+                await GetOrCreateSecurityProfileAssignment(client, buyerId, context, exportResult);
             }
 
             var user = await UpdateBuyerUser(client, customer, buyerId, context, exportResult);
@@ -123,7 +131,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                                     e.Message,
                                     e
                                 },
-                                $"{Name}: Ok| Create buyer '{buyerId}' failed.\n{ex.Message}\n{ex}").ConfigureAwait(false),
+                                $"{Name}: Ok| Create buyer '{buyerId}' failed.\n{e.Message}\n{e}").ConfigureAwait(false),
                             context);
                     }
                 }
@@ -150,6 +158,99 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             return null;
         }
 
+        /// <summary>
+        /// Gets or creates a security profile.
+        /// </summary>
+        /// <param name="client">The <see cref="OrderCloudClient"/>.</param>
+        /// <param name="profileId">The profile identifier.</param>
+        /// <param name="context">The context.</param>
+        /// <returns>The <see cref="SecurityProfile"/>.</returns>
+        protected async Task<SecurityProfile> GetOrCreateSecurityProfile(OrderCloudClient client, string profileId, CommercePipelineExecutionContext context, ExportResult exportResult)
+        {
+            try
+            {
+                var securityProfile = context.CommerceContext.GetObjects<SecurityProfile>().FirstOrDefault(b => b.ID == profileId);
+
+                if (securityProfile != null)
+                {
+                    return securityProfile;
+                }
+
+                exportResult.SecurityProfiles.ItemsProcessed++;
+
+                securityProfile = await client.SecurityProfiles.GetAsync(profileId);
+                exportResult.SecurityProfiles.ItemsNotChanged++;
+
+                context.CommerceContext.AddObject(securityProfile);
+
+                return securityProfile;
+            }
+            catch (OrderCloudException ex)
+            {
+                if (ex.HttpStatus == HttpStatusCode.NotFound) // Object does not exist
+                {
+                    try
+                    {
+                        var securityProfile = new SecurityProfile
+                        {
+                            ID = profileId,
+                            Name = profileId,
+                            Roles = new List<ApiRole>() { ApiRole.MeAddressAdmin, ApiRole.MeAdmin, ApiRole.MeCreditCardAdmin, ApiRole.MeXpAdmin, ApiRole.PasswordReset, ApiRole.Shopper }
+                        };
+
+                        securityProfile = await client.SecurityProfiles.SaveAsync(profileId, securityProfile);
+                        exportResult.SecurityProfiles.ItemsCreated++;
+
+                        return securityProfile;
+                    }
+                    catch (Exception e)
+                    {
+                        exportResult.SecurityProfiles.ItemsErrored++;
+
+                        context.Logger.LogError($"{Name}: Create security profile '{profileId}' failed.\n{e.Message}\n{e}");
+                    }
+                }
+                else
+                {
+                    exportResult.SecurityProfiles.ItemsErrored++;
+
+                    context.Logger.LogError($"{Name}: Get security profile '{profileId}' failed.\n{ex.Message}\n{ex}");
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets or creates a security profile assignment.
+        /// </summary>
+        /// <param name="client">The <see cref="OrderCloudClient"/>.</param>
+        /// <param name="profileId">The buyer/profile identifier.</param>
+        /// <param name="context">The context.</param>
+        /// <returns>The <see cref="SecurityProfileAssignment"/>.</returns>
+        protected async Task GetOrCreateSecurityProfileAssignment(OrderCloudClient client, string profileId, CommercePipelineExecutionContext context, ExportResult exportResult)
+        {
+            try
+            {
+                var securityProfileAssignment = new SecurityProfileAssignment
+                {
+                    SecurityProfileID = profileId,
+                    BuyerID = profileId
+                };
+
+                exportResult.SecurityProfileAssignments.ItemsProcessed++;
+
+                await client.SecurityProfiles.SaveAssignmentAsync(securityProfileAssignment);
+                exportResult.SecurityProfileAssignments.ItemsCreated++;
+            }
+            catch (Exception e)
+            {
+                exportResult.SecurityProfileAssignments.ItemsErrored++;
+
+                context.Logger.LogError($"{Name}: Create security profile assignment '{profileId}' failed.\n{e.Message}\n{e}");
+            }
+        }
+
         protected async Task<User> UpdateBuyerUser(OrderCloudClient client, Customer customer, string buyerId, CommercePipelineExecutionContext context, ExportResult exportResult)
         {
             try
@@ -165,13 +266,9 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                     Active = customer.AccountStatus == context.GetPolicy<KnownCustomersStatusesPolicy>().ActiveAccount
                 };
 
-                var composerView = customer.GetComposerViewFromName("ExtendedCustomer");
-
-                user.xp.CustomerGroup = composerView?.GetPropertyValue("CustomerGroup") ?? string.Empty;
-                user.xp.Other = composerView?.GetPropertyValue("Other") ?? string.Empty;
-
                 user = await client.Users.SaveAsync(buyerId, user.ID, user);
                 exportResult.BuyerUsers.ItemsUpdated++;
+
                 return user;
             }
             catch (Exception ex)

@@ -12,6 +12,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Models
     /// <seealso cref="Model" />
     public class ExportResult : Model
     {
+        public ExportObject AdminAddresses { get; set; } = new ExportObject();
         public ExportObject Buyers { get; set; } = new ExportObject();
         public ExportObject BuyerGroups { get; set; } = new ExportObject();
         public ExportObject BuyerUsers { get; set; } = new ExportObject();
@@ -21,7 +22,10 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Models
         public ExportObject Categories { get; set; } = new ExportObject();
         public ExportObject CategoryAssignments { get; set; } = new ExportObject();
         public ExportObject CategoryProductAssignments { get; set; } = new ExportObject();
+        public ExportObject ProductAssignments { get; set; } = new ExportObject();
         public ExportObject Products { get; set; } = new ExportObject();
+        public ExportObject SecurityProfileAssignments { get; set; } = new ExportObject();
+        public ExportObject SecurityProfiles { get; set; } = new ExportObject();
         public ExportObject Specs { get; set; } = new ExportObject();
         public ExportObject SpecOptions { get; set; } = new ExportObject();
         public ExportObject SpecProductAssignments { get; set; } = new ExportObject();

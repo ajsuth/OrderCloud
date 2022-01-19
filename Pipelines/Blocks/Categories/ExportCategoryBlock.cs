@@ -105,7 +105,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                                     e.Message,
                                     e
                                 },
-                                $"{Name}: Ok| Create product '{category.FriendlyId}' failed.\n{e.Message}\n{e}").ConfigureAwait(false),
+                                $"{Name}: Ok| Create category '{category.FriendlyId}' failed.\n{e.Message}\n{e}").ConfigureAwait(false),
                             context);
 
                         return null;
