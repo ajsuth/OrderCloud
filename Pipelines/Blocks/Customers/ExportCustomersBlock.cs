@@ -89,7 +89,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 {
                     newContext.CommerceContext.AddObject(buyer);
                 }
-                var securityProfiles = (context.CommerceContext.GetObjects<SecurityProfile>();
+                var securityProfiles = context.CommerceContext.GetObjects<SecurityProfile>();
                 foreach (var securityProfile in securityProfiles)
                 {
                     newContext.CommerceContext.AddObject(securityProfile);
