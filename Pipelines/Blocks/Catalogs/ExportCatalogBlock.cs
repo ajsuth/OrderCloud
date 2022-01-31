@@ -4,21 +4,21 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using OrderCloud.SDK;
 using Ajsuth.Sample.OrderCloud.Engine.FrameworkExtensions;
+using Ajsuth.Sample.OrderCloud.Engine.Models;
+using Ajsuth.Sample.OrderCloud.Engine.Pipelines.Arguments;
 using Ajsuth.Sample.OrderCloud.Engine.Policies;
+using Microsoft.Extensions.Logging;
+using OrderCloud.SDK;
 using Sitecore.Commerce.Core;
 using Sitecore.Framework.Conditions;
 using Sitecore.Framework.Pipelines;
 using System;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Catalog = Sitecore.Commerce.Plugin.Catalog.Catalog;
 using OCCatalog = OrderCloud.SDK.Catalog;
-using Microsoft.Extensions.Logging;
-using Ajsuth.Sample.OrderCloud.Engine.Models;
-using Ajsuth.Sample.OrderCloud.Engine.Pipelines.Arguments;
-using System.Linq;
 
 namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 {
@@ -27,9 +27,17 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
     [PipelineDisplayName(OrderCloudConstants.Pipelines.Blocks.ExportCatalog)]
     public class ExportCatalogBlock : AsyncPipelineBlock<Catalog, Catalog, CommercePipelineExecutionContext>
     {
-        /// <summary>Gets or sets the commander.</summary>
-        /// <value>The commander.</value>
+        /// <summary>Gets or sets the commerce commander.</summary>
         protected CommerceCommander Commander { get; set; }
+
+        /// <summary>The OrderCloud client.</summary>
+        protected OrderCloudClient Client { get; set; }
+
+        /// <summary>The export result model.</summary>
+        protected ExportResult Result { get; set; }
+
+        /// <summary>The buyer settings.</summary>
+        protected CatalogExportPolicy CatalogSettings { get; set; }
 
         /// <summary>Initializes a new instance of the <see cref="ExportCatalogBlock" /> class.</summary>
         /// <param name="commander">The commerce commander.</param>
@@ -39,36 +47,42 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
         }
 
         /// <summary>Executes the pipeline block's code logic.</summary>
-        /// <param name="arg">The pipeline argument.</param>
+        /// <param name="catalog">The pipeline argument.</param>
         /// <param name="context">The context.</param>
         /// <returns>The <see cref="Catalog"/>.</returns>
         public override async Task<Catalog> RunAsync(Catalog catalog, CommercePipelineExecutionContext context)
         {
             Condition.Requires(catalog).IsNotNull($"{Name}: The catalog can not be null");
 
-            var client = context.CommerceContext.GetObject<OrderCloudClient>();
-            var exportResult = context.CommerceContext.GetObject<ExportResult>();
+            Client = context.CommerceContext.GetObject<OrderCloudClient>();
+            Result = context.CommerceContext.GetObject<ExportResult>();
 
-            var ocCatalog = await GetOrCreateCatalog(client, catalog, context, exportResult);
+            var ocCatalog = await GetOrCreateCatalog(context, catalog);
             if (ocCatalog == null)
             {
                 return null;
             }
 
             var exportSettings = context.CommerceContext.GetObject<ExportEntitiesArgument>();
-            var buyerId = exportSettings.CatalogSettings.FirstOrDefault(c => c.CatalogName == ocCatalog.ID).DefaultBuyerId;
-            await CreateCatalogAssignment(client, ocCatalog, buyerId, context, exportResult);
-
+            CatalogSettings = exportSettings.CatalogSettings.FirstOrDefault(c => c.CatalogName == ocCatalog.ID);
+            await CreateOrUpdateCatalogAssignment(context, ocCatalog);
+            
             return catalog;
         }
 
-        protected async Task<OCCatalog> GetOrCreateCatalog(OrderCloudClient client, Catalog catalog, CommercePipelineExecutionContext context, ExportResult exportResult)
+        /// <summary>
+        /// Gets or creates a catalog.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="catalog">The XC catalog.</param>
+        /// <returns>The <see cref="OrderCloud.SDK.Catalog"/>.</returns>
+        protected async Task<OCCatalog> GetOrCreateCatalog(CommercePipelineExecutionContext context, Catalog catalog)
         {
             var catalogId = catalog.FriendlyId.ToValidOrderCloudId();
             try
             {
-                var ocCatalog = await client.Catalogs.GetAsync(catalogId);
-                exportResult.Catalogs.ItemsNotChanged++;
+                var ocCatalog = await Client.Catalogs.GetAsync(catalogId);
+                Result.Catalogs.ItemsNotChanged++;
 
                 return ocCatalog;
             }
@@ -85,15 +99,17 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                             Name = catalog.DisplayName
                         };
 
+                        Result.Catalogs.ItemsProcessed++;
+
                         context.Logger.LogInformation($"Saving catalog; Catalog ID: {ocCatalog.ID}");
-                        ocCatalog = await client.Catalogs.SaveAsync(catalogId, ocCatalog);
-                        exportResult.Catalogs.ItemsCreated++;
+                        ocCatalog = await Client.Catalogs.SaveAsync(catalogId, ocCatalog);
+                        Result.Catalogs.ItemsCreated++;
 
                         return ocCatalog;
                     }
                     catch (Exception e)
                     {
-                        exportResult.Catalogs.ItemsErrored++;
+                        Result.Catalogs.ItemsErrored++;
 
                         context.Abort(
                             await context.CommerceContext.AddMessage(
@@ -114,7 +130,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 }
                 else
                 {
-                    exportResult.Catalogs.ItemsErrored++;
+                    Result.Catalogs.ItemsErrored++;
 
                     context.Abort(
                         await context.CommerceContext.AddMessage(
@@ -135,28 +151,33 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             }
         }
 
-        protected async Task CreateCatalogAssignment(OrderCloudClient client, OCCatalog catalog, string buyerId, CommercePipelineExecutionContext context, ExportResult exportResult)
+        /// <summary>
+        /// Creates or updates a catalog assignment.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="catalog">The OC catalog.</param>
+        protected async Task CreateOrUpdateCatalogAssignment(CommercePipelineExecutionContext context, OCCatalog catalog)
         {
             try
             {
                 var catalogAssignment = new CatalogAssignment
                 {
                     CatalogID = catalog.ID,
-                    BuyerID = buyerId,
+                    BuyerID = CatalogSettings.DefaultBuyerId,
                     ViewAllCategories = true,
                     ViewAllProducts = true
                 };
 
-                exportResult.CatalogAssignments.ItemsProcessed++;
+                Result.CatalogAssignments.ItemsProcessed++;
 
-                context.Logger.LogInformation($"Saving catalog assignment; Catalog ID: {catalog.ID}, Buyer ID: {buyerId}");
-                await client.Catalogs.SaveAssignmentAsync(catalogAssignment);
-                exportResult.CatalogAssignments.ItemsUpdated++;
+                context.Logger.LogInformation($"Saving catalog assignment; Catalog ID: {catalog.ID}, Buyer ID: {CatalogSettings.DefaultBuyerId}");
+                await Client.Catalogs.SaveAssignmentAsync(catalogAssignment);
+                Result.CatalogAssignments.ItemsUpdated++;
             }
             catch (Exception ex)
             {
-                exportResult.CatalogAssignments.ItemsErrored++;
-                context.Logger.LogError($"Saving catalog assignment failed; Catalog ID: {catalog.ID}\n{ex.Message}\n{ex}");
+                Result.CatalogAssignments.ItemsErrored++;
+                context.Logger.LogError($"Saving catalog assignment failed; Catalog ID: {catalog.ID}, Buyer ID: {CatalogSettings.DefaultBuyerId}\n{ex.Message}\n{ex}");
             }
         }
     }

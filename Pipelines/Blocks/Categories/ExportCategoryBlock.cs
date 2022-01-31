@@ -4,18 +4,18 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using OrderCloud.SDK;
 using Ajsuth.Sample.OrderCloud.Engine.FrameworkExtensions;
+using Ajsuth.Sample.OrderCloud.Engine.Models;
+using Microsoft.Extensions.Logging;
+using OrderCloud.SDK;
 using Sitecore.Commerce.Core;
 using Sitecore.Framework.Conditions;
 using Sitecore.Framework.Pipelines;
 using System;
 using System.Net;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Category = Sitecore.Commerce.Plugin.Catalog.Category;
 using OCCategory = OrderCloud.SDK.Category;
-using Ajsuth.Sample.OrderCloud.Engine.Models;
 
 namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 {
@@ -24,9 +24,14 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
     [PipelineDisplayName(OrderCloudConstants.Pipelines.Blocks.ExportCategory)]
     public class ExportCategoryBlock : AsyncPipelineBlock<Category, Category, CommercePipelineExecutionContext>
     {
-        /// <summary>Gets or sets the commander.</summary>
-        /// <value>The commander.</value>
+        /// <summary>Gets or sets the commerce commander.</summary>
         protected CommerceCommander Commander { get; set; }
+
+        /// <summary>The OrderCloud client.</summary>
+        protected OrderCloudClient Client { get; set; }
+
+        /// <summary>The export result model.</summary>
+        protected ExportResult Result { get; set; }
 
         /// <summary>Initializes a new instance of the <see cref="ExportCategoryBlock" /> class.</summary>
         /// <param name="commander">The commerce commander.</param>
@@ -43,10 +48,10 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
         {
             Condition.Requires(category).IsNotNull($"{Name}: The customer can not be null");
 
-            var client = context.CommerceContext.GetObject<OrderCloudClient>();
-            var exportResult = context.CommerceContext.GetObject<ExportResult>();
+            Client = context.CommerceContext.GetObject<OrderCloudClient>();
+            Result = context.CommerceContext.GetObject<ExportResult>();
 
-            var ocCategory = await GetOrCreateCategory(client, category, context, exportResult);
+            var ocCategory = await GetOrCreateCategory(context, category);
             if (ocCategory == null)
             {
                 return null;
@@ -55,7 +60,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             return category;
         }
 
-        protected async Task<OCCategory> GetOrCreateCategory(OrderCloudClient client, Category category, CommercePipelineExecutionContext context, ExportResult exportResult)
+        protected async Task<OCCategory> GetOrCreateCategory(CommercePipelineExecutionContext context, Category category)
         {
             var friendlyIdParts = category.FriendlyId.Split("-");
             var catalogId = friendlyIdParts[0].ToValidOrderCloudId();
@@ -63,8 +68,8 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
             try
             {
-                var ocCategory = await client.Categories.GetAsync(catalogId, categoryId);
-                exportResult.Categories.ItemsNotChanged++;
+                var ocCategory = await Client.Categories.GetAsync(catalogId, categoryId);
+                Result.Categories.ItemsNotChanged++;
 
                 return ocCategory;
             }
@@ -85,14 +90,14 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                         // Cannot set the category ParentID at this time as the parent category may not be created.
 
                         context.Logger.LogInformation($"Saving category; Catalog ID: {catalogId}, Category ID: {categoryId}");
-                        ocCategory = await client.Categories.SaveAsync(catalogId, categoryId, ocCategory);
-                        exportResult.Categories.ItemsCreated++;
+                        ocCategory = await Client.Categories.SaveAsync(catalogId, categoryId, ocCategory);
+                        Result.Categories.ItemsCreated++;
 
                         return ocCategory;
                     }
                     catch (Exception e)
                     {
-                        exportResult.Categories.ItemsErrored++;
+                        Result.Categories.ItemsErrored++;
 
                         context.Abort(
                             await context.CommerceContext.AddMessage(
@@ -113,7 +118,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 }
                 else
                 {
-                    exportResult.Categories.ItemsErrored++;
+                    Result.Categories.ItemsErrored++;
 
                     context.Abort(
                         await context.CommerceContext.AddMessage(

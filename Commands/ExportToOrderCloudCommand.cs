@@ -35,14 +35,14 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Commands
         /// <param name="commerceContext">The commerce context</param>
         /// <param name="parameter">The parameter for the command</param>
         /// <returns>The <see cref="Task"/>.</returns>
-        public virtual async Task<ExportResult> Process(CommerceContext commerceContext, ExportSettings exportSettings, List<CatalogExportPolicy> catalogSettings, SellableItemExportPolicy productSettings)
+        public virtual async Task<ExportResult> Process(CommerceContext commerceContext, ExportSettings exportSettings, List<CustomerExportPolicy> buyerSettings, List<CatalogExportPolicy> catalogSettings, SellableItemExportPolicy productSettings)
         {
             ExportResult result = null;
 
             var context = commerceContext.CreatePartialClone();
             using (var activity = CommandActivity.Start(context, this))
             {
-                var arg = new ExportToOrderCloudArgument(exportSettings, catalogSettings, productSettings);
+                var arg = new ExportToOrderCloudArgument(exportSettings, buyerSettings, catalogSettings, productSettings);
                 result = await Commander.Pipeline<IExportToOrderCloudPipeline>().RunAsync(arg, context.PipelineContextOptions).ConfigureAwait(false);
                 
                 return context.GetObject<ExportResult>();

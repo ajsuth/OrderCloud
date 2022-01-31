@@ -5,6 +5,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 using Sitecore.Commerce.Core;
+using System.Collections.Generic;
 
 namespace Ajsuth.Sample.OrderCloud.Engine.Policies
 {
@@ -37,11 +38,19 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Policies
         public string ShopName { get; set; }
 
         /// <summary>
-        /// Gets or sets if multi-currency is configured for the catalog. Will create specific buyer user groups for each currency.
+        /// Gets or sets the currencies for the catalog. Will create specific buyer user groups for each currency.
         /// </summary>
         /// <value>
-        /// The multi-currency.
+        /// The catalog's currencies.
         /// </value>
-        public bool MultiCurrency { get; set; }
+        public List<string> Currencies { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Gets or sets the default currency for the catalog. Will determine the default buyer user group buyer users will be assigned to.
+        /// </summary>
+        /// <value>
+        /// The catalog's default currency.
+        /// </value>
+        public string DefaultCurrency { get; set; }
     }
 }

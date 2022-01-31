@@ -54,37 +54,6 @@ namespace Ajsuth.Sample.OrderCloud.Engine.FrameworkExtensions
         }
 
         /// <summary>
-        /// Determines if the sellable items with a single variation will be folded into a standalone product
-        /// if the variation does not have any variation properties configured.
-        /// </summary>
-        /// <param name="sellableItem">The <see cref="SellableItem"/>.</param>
-        /// <returns>True if the sole variant does not have any variation properties configured.</returns>
-        public static bool WillFoldIntoStandloneProductForOrderCloud(this SellableItem sellableItem)
-        {
-            if (sellableItem == null || !sellableItem.HasComponent<ItemVariationsComponent>())
-            {
-                return false;
-            }
-
-            var variationsComponent = sellableItem.GetComponent<ItemVariationsComponent>();
-            var variations = variationsComponent.GetChildComponents<ItemVariationComponent>();
-            if (variations.Count > 1)
-            {
-                return false;
-            }
-
-            var variation = variations[0];
-            if (!variation.HasChildComponent<DisplayPropertiesComponent>())
-            {
-                return true;
-            }
-
-            var displayProperties = variation.GetChildComponent<DisplayPropertiesComponent>();
-
-            return string.IsNullOrWhiteSpace(displayProperties.Color) && string.IsNullOrWhiteSpace(displayProperties.Size);
-        }
-
-        /// <summary>
         /// Determines which variation properties are being used on the current sellable item.
         /// </summary>
         /// <param name="sellableItem">The <see cref="SellableItem"/>.</param>
@@ -191,6 +160,16 @@ namespace Ajsuth.Sample.OrderCloud.Engine.FrameworkExtensions
         {
             var policy = context.GetPolicy<DigitalItemTagsPolicy>();
             return sellableItem.Tags.FirstOrDefault(t => policy.TagList.Contains(t.Name, StringComparer.OrdinalIgnoreCase)) == null;
+        }
+
+        public static List<ItemVariationComponent> GetVariations(this SellableItem sellableItem)
+        {
+            if (!sellableItem.HasComponent<ItemVariationsComponent>())
+            {
+                return new List<ItemVariationComponent>();
+            }
+
+            return sellableItem.GetComponent<ItemVariationsComponent>().Variations;
         }
     }
 }

@@ -26,6 +26,12 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
         /// <value>The commander.</value>
         protected CommerceCommander Commander { get; set; }
 
+        /// <summary>The export result model.</summary>
+        protected ExportResult Result { get; set; }
+
+        /// <summary>The problem objects model.</summary>
+        protected ProblemObjects ProblemObjects { get; set; }
+
         /// <summary>Initializes a new instance of the <see cref="ValidateSellableItemBlock" /> class.</summary>
         /// <param name="commander">The commerce commander.</param>
         public ValidateSellableItemBlock(CommerceCommander commander)
@@ -42,14 +48,16 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             Condition.Requires(arg).IsNotNull($"{Name}: The argument cannot be null.");
             Condition.Requires(arg.EntityId).IsNotNull($"{Name}: The entity id cannot be null.");
 
-            var exportResult = context.CommerceContext.GetObject<ExportResult>();
-            var problemObjects = context.CommerceContext.GetObject<ProblemObjects>();
+            Result = context.CommerceContext.GetObject<ExportResult>();
+            ProblemObjects = context.CommerceContext.GetObject<ProblemObjects>();
+
+            Result.Products.ItemsProcessed++;
 
             var sellableItem = await Commander.Pipeline<FindEntityPipeline>().RunAsync(new FindEntityArgument(typeof(SellableItem), arg.EntityId), context).ConfigureAwait(false) as SellableItem;
             if (sellableItem == null)
             {
-                exportResult.Products.ItemsErrored++;
-                problemObjects.Products.Add(sellableItem.FriendlyId.ToValidOrderCloudId());
+                Result.Products.ItemsErrored++;
+                ProblemObjects.Products.Add(sellableItem.FriendlyId.ToValidOrderCloudId());
 
                 context.Abort(
                     await context.CommerceContext.AddMessage(
@@ -68,8 +76,8 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
             if (sellableItem.IsBundle)
             {
-                exportResult.Products.ItemsSkipped++;
-                problemObjects.Products.Add(sellableItem.FriendlyId.ToValidOrderCloudId());
+                Result.Products.ItemsSkipped++;
+                ProblemObjects.Products.Add(sellableItem.FriendlyId.ToValidOrderCloudId());
 
                 context.Abort(
                     await context.CommerceContext.AddMessage(
@@ -84,8 +92,8 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
             if (!sellableItem.Published)
             {
-                exportResult.Products.ItemsSkipped++;
-                problemObjects.Products.Add(sellableItem.FriendlyId.ToValidOrderCloudId());
+                Result.Products.ItemsSkipped++;
+                ProblemObjects.Products.Add(sellableItem.FriendlyId.ToValidOrderCloudId());
 
                 context.Abort(
                     await context.CommerceContext.AddMessage(
@@ -98,9 +106,9 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 return null;
             }
 
-            if (!(await ValidateVariants(sellableItem, context, exportResult)))
+            if (!(await ValidateVariants(context, sellableItem)))
             {
-                problemObjects.Products.Add(sellableItem.FriendlyId.ToValidOrderCloudId());
+                ProblemObjects.Products.Add(sellableItem.FriendlyId.ToValidOrderCloudId());
 
                 return null;
             }
@@ -111,10 +119,10 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
         /// <summary>
         /// Verifies that the sellable item's data model can be migrated to OrderCloud.
         /// </summary>
-        /// <param name="sellableItem">The <see cref="SellableItem"/> to validate.</param>
         /// <param name="context">The context.</param>
+        /// <param name="sellableItem">The <see cref="SellableItem"/> to validate.</param>
         /// <returns>True if the sellable item's variants can be migrated to OrderCloud.</returns>
-        protected async Task<bool> ValidateVariants(SellableItem sellableItem, CommercePipelineExecutionContext context, ExportResult exportResult)
+        protected async Task<bool> ValidateVariants(CommercePipelineExecutionContext context, SellableItem sellableItem)
         {
             /* Rules:
              * 1. A sellableItem with a single variant will be converted to a standalone product if no variation properties have been configured on the variant.
@@ -167,7 +175,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 {
                     if (shouldHaveColor && string.IsNullOrWhiteSpace(displayProperties.Color))
                     {
-                        exportResult.Products.ItemsErrored++;
+                        Result.Products.ItemsErrored++;
 
                         context.Abort(
                             await context.CommerceContext.AddMessage(
@@ -182,7 +190,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
                     if (shouldHaveSize && string.IsNullOrWhiteSpace(displayProperties.Size))
                     {
-                        exportResult.Products.ItemsErrored++;
+                        Result.Products.ItemsErrored++;
 
                         context.Abort(
                             await context.CommerceContext.AddMessage(
@@ -199,7 +207,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 var variationPropertyCombination = shouldHaveColor ? $"{displayProperties.Color}|" : string.Empty + (shouldHaveSize ? $"{displayProperties.Size}|" : string.Empty);
                 if (variantPropertyCombinations.Contains(variationPropertyCombination))
                 {
-                    exportResult.Products.ItemsErrored++;
+                    Result.Products.ItemsErrored++;
 
                     context.Abort(
                         await context.CommerceContext.AddMessage(

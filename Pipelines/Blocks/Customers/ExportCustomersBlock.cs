@@ -126,9 +126,6 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 }
             }
 
-            var exportResult = context.CommerceContext.GetObject<ExportResult>();
-            exportResult.BuyerUsers.ItemsProcessed = itemsProcessed;
-
             context.Logger.LogInformation($"{Name}-Exporting customers Completed: {(int)itemsProcessed}. Environment: {context.CommerceContext.Environment.Name}");
             return arg;
         }

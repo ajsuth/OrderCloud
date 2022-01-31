@@ -23,5 +23,15 @@ namespace Ajsuth.Sample.OrderCloud.Engine.FrameworkExtensions
         {
             return NonAlphaNumericRegex.Replace(identifier, "_");
         }
+
+        /// <summary>
+        /// Sanitizes the identifier input to a valid OrderCloud identifier.
+        /// </summary>
+        /// <param name="identifier">The identifier to be sanitized.</param>
+        /// <returns>A valid OrderCloud identifier</returns>
+        public static string ToXCId(this string identifier)
+        {
+            return NonAlphaNumericRegex.Replace(identifier, "_");
+        }
     }
 }
