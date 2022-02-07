@@ -36,8 +36,8 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
         /// <summary>The export result model.</summary>
         protected ExportResult Result { get; set; }
 
-        /// <summary>The buyer settings.</summary>
-        protected CatalogExportPolicy CatalogSettings { get; set; }
+        /// <summary>The site settings.</summary>
+        protected SitePolicy SiteSettings { get; set; }
 
         /// <summary>Initializes a new instance of the <see cref="ExportCatalogBlock" /> class.</summary>
         /// <param name="commander">The commerce commander.</param>
@@ -57,14 +57,15 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             Client = context.CommerceContext.GetObject<OrderCloudClient>();
             Result = context.CommerceContext.GetObject<ExportResult>();
 
+            var exportSettings = context.CommerceContext.GetObject<ExportEntitiesArgument>();
+            SiteSettings = exportSettings.SiteSettings.FirstOrDefault(site => site.Catalog.EqualsOrdinalIgnoreCase(catalog.FriendlyId));
+
             var ocCatalog = await GetOrCreateCatalog(context, catalog);
             if (ocCatalog == null)
             {
                 return null;
             }
 
-            var exportSettings = context.CommerceContext.GetObject<ExportEntitiesArgument>();
-            CatalogSettings = exportSettings.CatalogSettings.FirstOrDefault(c => c.CatalogName == ocCatalog.ID);
             await CreateOrUpdateCatalogAssignment(context, ocCatalog);
             
             return catalog;
@@ -163,21 +164,21 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 var catalogAssignment = new CatalogAssignment
                 {
                     CatalogID = catalog.ID,
-                    BuyerID = CatalogSettings.DefaultBuyerId,
+                    BuyerID = SiteSettings.Domain.ToValidOrderCloudId(),
                     ViewAllCategories = true,
                     ViewAllProducts = true
                 };
 
                 Result.CatalogAssignments.ItemsProcessed++;
 
-                context.Logger.LogInformation($"Saving catalog assignment; Catalog ID: {catalog.ID}, Buyer ID: {CatalogSettings.DefaultBuyerId}");
+                context.Logger.LogInformation($"Saving catalog assignment; Catalog ID: {catalog.ID}, Buyer ID: {SiteSettings.Domain.ToValidOrderCloudId()}");
                 await Client.Catalogs.SaveAssignmentAsync(catalogAssignment);
                 Result.CatalogAssignments.ItemsUpdated++;
             }
             catch (Exception ex)
             {
                 Result.CatalogAssignments.ItemsErrored++;
-                context.Logger.LogError($"Saving catalog assignment failed; Catalog ID: {catalog.ID}, Buyer ID: {CatalogSettings.DefaultBuyerId}\n{ex.Message}\n{ex}");
+                context.Logger.LogError($"Saving catalog assignment failed; Catalog ID: {catalog.ID}, Buyer ID: {SiteSettings.Domain.ToValidOrderCloudId()}\n{ex.Message}\n{ex}");
             }
         }
     }

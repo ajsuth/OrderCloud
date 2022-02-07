@@ -62,7 +62,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
             context.Logger.LogDebug($"{Name}: Validating catalog '{catalog.Id}'");
 
-            if (!arg.CatalogSettings.Any(c => c.CatalogName == catalog.Name))
+            if (!arg.SiteSettings.Any(c => c.Catalog.EqualsOrdinalIgnoreCase(catalog.Name)))
             {
                 exportResult.Catalogs.ItemsSkipped++;
 

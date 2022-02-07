@@ -35,6 +35,16 @@ namespace Ajsuth.Sample.OrderCloud.Engine
                     .Add<Pipelines.Blocks.ConfigureOpsServiceApiBlock>()
                 )
 
+                .AddPipeline<IExportBuyersPipeline, ExportBuyersPipeline>(pipeline => pipeline
+                    .Add<ValidateDomainBlock>()
+                    .Add<ExportBuyerBlock>()
+                )
+
+                .AddPipeline<IExportBuyersExtendedPipeline, ExportBuyersExtendedPipeline>(pipeline => pipeline
+                    .Add<ValidateStorefrontBlock>()
+                    .Add<ExportBuyerExtendedBlock>()
+                )
+
                 .AddPipeline<IExportCustomersPipeline, ExportCustomersPipeline>(pipeline => pipeline
                     .Add<ValidateCustomerBlock>()
                     .Add<ExportCustomerBlock>()
@@ -68,6 +78,8 @@ namespace Ajsuth.Sample.OrderCloud.Engine
                 .AddPipeline<IExportToOrderCloudPipeline, ExportToOrderCloudPipeline>(pipeline => pipeline
                     .Add<PrepareExportBlock>()
                     .Add<PrepareOrderCloudClientBlock>()
+                    .Add<ExportBuyersBlock>()
+                    .Add<ExportBuyersExtendedBlock>()
                     .Add<ExportCustomersBlock>()
                     .Add<ExportCatalogsBlock>()
                     .Add<ExportCategoriesBlock>()

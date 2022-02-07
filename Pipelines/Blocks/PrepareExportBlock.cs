@@ -9,7 +9,6 @@ using Ajsuth.Sample.OrderCloud.Engine.Models;
 using Ajsuth.Sample.OrderCloud.Engine.Pipelines.Arguments;
 using OrderCloud.SDK;
 using Sitecore.Commerce.Core;
-using Sitecore.Commerce.Plugin.Shops;
 using Sitecore.Framework.Conditions;
 using Sitecore.Framework.Pipelines;
 using System.Threading.Tasks;
@@ -39,26 +38,6 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
         public override async Task<ExportToOrderCloudArgument> RunAsync(ExportToOrderCloudArgument arg, CommercePipelineExecutionContext context)
         {
             Condition.Requires(arg).IsNotNull($"{Name}: The argument can not be null");
-
-            // Shop probably not needed
-            //var shop = await Commander.Command<GetShopCommand>().Process(context.CommerceContext, context.CommerceContext.CurrentShopName());
-
-            //if (shop == null)
-            //{
-            //    context.Abort(
-            //        await context.CommerceContext.AddMessage(
-            //            context.GetPolicy<KnownResultCodes>().Error,
-            //            OrderCloudConstants.Errors.ShopNotFound,
-            //            new object[]
-            //            {
-            //                Name,
-            //                context.CommerceContext.CurrentShopName()
-            //            },
-            //            $"{Name}: Shop '{context.CommerceContext.CurrentShopName()}' not found.").ConfigureAwait(false),
-            //        context);
-            //}
-
-            //context.CommerceContext.AddUniqueEntityByType(shop);
 
             context.CommerceContext.AddObject(new ExportResult());
             context.CommerceContext.AddObject(new ProblemObjects());

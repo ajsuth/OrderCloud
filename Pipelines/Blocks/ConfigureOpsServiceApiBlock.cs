@@ -39,8 +39,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             var exportCatalogsAction = modelBuilder.Action("ExportToOrderCloud");
             exportCatalogsAction.Parameter<string>("importType");
             exportCatalogsAction.Parameter<ExportSettings>("processSettings");
-            exportCatalogsAction.CollectionParameter<CustomerExportPolicy>("buyerSettings");
-            exportCatalogsAction.CollectionParameter<CatalogExportPolicy>("catalogSettings");
+            exportCatalogsAction.CollectionParameter<SitePolicy>("siteSettings");
             exportCatalogsAction.Parameter<SellableItemExportPolicy>("productSettings");
             exportCatalogsAction.Returns<ExportResult>();
 

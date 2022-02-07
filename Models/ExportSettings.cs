@@ -18,6 +18,11 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Models
         public string ImportType { get; set; } = "CREATE";
 
         /// <summary>
+        /// Flag to process sites and export buyer data to OrderCloud
+        /// </summary>
+        public bool ProcessSites { get; set; } = false;
+
+        /// <summary>
         /// Flag to export customer data to OrderCloud
         /// </summary>
         public bool ProcessCustomers { get; set; } = false;

@@ -15,13 +15,12 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Arguments
     /// <seealso cref="PipelineArgument" />
     public class ExportToOrderCloudArgument : PipelineArgument
     {
-        public ExportToOrderCloudArgument(ExportSettings processSettings, List<CustomerExportPolicy> buyerSettings, List<CatalogExportPolicy> catalogSettings, SellableItemExportPolicy productSettings)
+        public ExportToOrderCloudArgument(ExportSettings processSettings, List<SitePolicy> siteSettings, SellableItemExportPolicy productSettings)
         {
             Condition.Requires(processSettings, nameof(processSettings)).IsNotNull();
 
             ProcessSettings = processSettings;
-            BuyerSettings = buyerSettings ?? new List<CustomerExportPolicy>();
-            CatalogSettings = catalogSettings ?? new List<CatalogExportPolicy>();
+            SiteSettings = siteSettings ?? new List<SitePolicy>();
             ProductSettings = productSettings;
         }
 
@@ -31,14 +30,9 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Arguments
         public ExportSettings ProcessSettings { get; set; }
 
         /// <summary>
-        /// The buyer settings
+        /// The site settings
         /// </summary>
-        public List<CustomerExportPolicy> BuyerSettings { get; set; }
-
-        /// <summary>
-        /// The product settings
-        /// </summary>
-        public List<CatalogExportPolicy> CatalogSettings { get; set; }
+        public List<SitePolicy> SiteSettings { get; set; }
 
         /// <summary>
         /// The product settings

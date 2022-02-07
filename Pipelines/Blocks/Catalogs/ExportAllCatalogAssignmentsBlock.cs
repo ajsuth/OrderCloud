@@ -66,7 +66,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
             foreach (var entityId in items.EntityReferences.Select(e => e.EntityId))
             {
-                if (!arg.CatalogSettings.Any(p => p.CatalogName.ToEntityId<Catalog>() == entityId))
+                if (!arg.SiteSettings.Any(p => p.Catalog.ToEntityId<Catalog>() == entityId))
                 {
                     context.Logger.LogInformation($"{Name}-Catalog skipped: {entityId}. Environment: {context.CommerceContext.Environment.Name}");
                 }

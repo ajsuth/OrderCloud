@@ -36,9 +36,6 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
         /// <summary>The export result model.</summary>
         protected ExportResult Result { get; set; }
 
-        /// <summary>The buyer settings.</summary>
-        protected CustomerExportPolicy BuyerSettings { get; set; }
-
         /// <summary>Initializes a new instance of the <see cref="ExportCustomerBlock" /> class.</summary>
         /// <param name="commander">The commerce commander.</param>
         public ExportCustomerBlock(CommerceCommander commander)
@@ -57,24 +54,10 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             Client = context.CommerceContext.GetObject<OrderCloudClient>();
             Result = context.CommerceContext.GetObject<ExportResult>();
 
-            var buyerId = customer.Domain.ToValidOrderCloudId();
-
             var exportSettings = context.CommerceContext.GetObject<ExportEntitiesArgument>();
-            BuyerSettings = exportSettings.BuyerSettings.FirstOrDefault(c => c.Id.ToValidOrderCloudId() == buyerId);
+            var siteSettings = exportSettings.SiteSettings.FirstOrDefault(site => site.Domain.EqualsOrdinalIgnoreCase(customer.Domain));
 
-            var buyer = await GetOrCreateBuyer(context, buyerId);
-            if (buyer == null)
-            {
-                return null;
-            }
-
-            var defaultUserGroup = await CreateOrUpdateBuyerUserGroups(context, buyerId);
-
-            var securityProfile = await GetOrCreateSecurityProfile(context, buyerId);
-            if (securityProfile != null)
-            {
-                await CreateOrUpdateSecurityProfileAssignment(context, buyerId);
-            }
+            var buyerId = customer.Domain.ToValidOrderCloudId();
 
             var user = await CreateOrUpdateBuyerUser(context, customer, buyerId);
             if (user == null)
@@ -82,243 +65,18 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 return null;
             }
 
-            var addresses = await CreateOrUpdateBuyerAddresses(context, buyerId, customer, user);
+            var addresses = await CreateOrUpdateBuyerAddresses(context, buyerId, customer);
             if (addresses.Any())
             {
                 await CreateOrUpdateBuyerAddressAssignments(context, buyerId, user, addresses);
             }
 
-            if (defaultUserGroup != null)
+            if (!string.IsNullOrWhiteSpace(siteSettings.DefaultUserGroup))
             {
-                await CreateOrUpdateBuyerUserGroupAssignment(context, buyerId, user, defaultUserGroup);
+                await CreateOrUpdateBuyerUserGroupAssignment(context, buyerId, user, siteSettings.DefaultUserGroup);
             }
-            
+
             return customer;
-        }
-
-        /// <summary>
-        /// Gets or creates a buyer.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="buyerId">The buyer identifier.</param>
-        /// <returns>The <see cref="Buyer"/>.</returns>
-        protected async Task<Buyer> GetOrCreateBuyer(CommercePipelineExecutionContext context, string buyerId)
-        {
-            try
-            {
-                var buyer = context.CommerceContext.GetObjects<Buyer>().FirstOrDefault(b => b.ID == buyerId);
-
-                if (buyer != null)
-                {
-                    return buyer;
-                }
-
-                Result.Buyers.ItemsProcessed++;
-
-                buyer = await Client.Buyers.GetAsync(buyerId);
-                Result.Buyers.ItemsNotChanged++;
-
-                context.CommerceContext.AddObject(buyer);
-                
-                return buyer;
-            }
-            catch (OrderCloudException ex)
-            {
-                if (ex.HttpStatus == HttpStatusCode.NotFound) // Object does not exist
-                {
-                    try
-                    {
-                        var buyer = new Buyer
-                        {
-                            ID = buyerId,
-                            Active = true,
-                            Name = buyerId
-                        };
-
-                        context.Logger.LogInformation($"Saving buyer; Buyer ID: {buyerId}");
-                        buyer = await Client.Buyers.SaveAsync(buyerId, buyer);
-                        Result.Buyers.ItemsCreated++;
-
-                        return buyer;
-                    }
-                    catch (Exception e)
-                    {
-                        Result.Buyers.ItemsErrored++;
-
-                        context.Abort(
-                            await context.CommerceContext.AddMessage(
-                                context.GetPolicy<KnownResultCodes>().Error,
-                                OrderCloudConstants.Errors.CreateBuyerFailed,
-                                new object[]
-                                {
-                                    Name,
-                                    buyerId,
-                                    e.Message,
-                                    e
-                                },
-                                $"{Name}: Ok| Create buyer '{buyerId}' failed.\n{e.Message}\n{e}").ConfigureAwait(false),
-                            context);
-                    }
-                }
-                else
-                {
-                    Result.Buyers.ItemsErrored++;
-
-                    context.Abort(
-                        await context.CommerceContext.AddMessage(
-                            context.GetPolicy<KnownResultCodes>().Error,
-                            OrderCloudConstants.Errors.GetBuyerFailed,
-                            new object[]
-                            {
-                                Name,
-                                buyerId,
-                                ex.Message,
-                                ex
-                            },
-                            $"{Name}: Ok| Get buyer '{buyerId}' failed.\n{ex.Message}\n{ex}").ConfigureAwait(false),
-                        context);
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Creates or updates the buyer user groups.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="buyerId">The buyer identifier.</param>
-        /// <param name="exportResult"></param>
-        /// <returns></returns>
-        protected async Task<UserGroup> CreateOrUpdateBuyerUserGroups(CommercePipelineExecutionContext context, string buyerId)
-        {
-            UserGroup defaultUserGroup = null;
-
-            foreach (var currency in BuyerSettings.Currencies)
-            {
-                var buyerGroupId = $"{buyerId}_{currency}";
-                try
-                {
-                    var userPolicy = context.GetPolicy<UserPolicy>();
-                    var userGroup = new UserGroup
-                    {
-                        ID = buyerGroupId,
-                        Name = buyerGroupId
-                    };
-
-                    Result.BuyerGroups.ItemsProcessed++;
-
-                    context.Logger.LogInformation($"Saving buyer user group; User Group ID: {buyerGroupId}");
-                    userGroup = await Client.UserGroups.SaveAsync(buyerId, userGroup.ID, userGroup);
-                    Result.BuyerGroups.ItemsUpdated++;
-
-                    if (currency.Equals(BuyerSettings.DefaultCurrency, StringComparison.OrdinalIgnoreCase))
-                    {
-                        defaultUserGroup = userGroup;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Result.BuyerGroups.ItemsErrored++;
-                    context.Logger.LogError($"{Name}: Saving buyer user group '{buyerGroupId}' failed.\n{ex.Message}\n{ex}");
-
-                    continue;
-                }
-            }
-
-            return defaultUserGroup;
-        }
-
-        /// <summary>
-        /// Gets or creates a security profile.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="profileId">The profile identifier.</param>
-        /// <returns>The <see cref="SecurityProfile"/>.</returns>
-        protected async Task<SecurityProfile> GetOrCreateSecurityProfile(CommercePipelineExecutionContext context, string profileId)
-        {
-            try
-            {
-                var securityProfile = context.CommerceContext.GetObjects<SecurityProfile>().FirstOrDefault(b => b.ID == profileId);
-
-                if (securityProfile != null)
-                {
-                    return securityProfile;
-                }
-
-                Result.SecurityProfiles.ItemsProcessed++;
-
-                securityProfile = await Client.SecurityProfiles.GetAsync(profileId);
-                Result.SecurityProfiles.ItemsNotChanged++;
-
-                context.CommerceContext.AddObject(securityProfile);
-
-                return securityProfile;
-            }
-            catch (OrderCloudException ex)
-            {
-                if (ex.HttpStatus == HttpStatusCode.NotFound) // Object does not exist
-                {
-                    try
-                    {
-                        var securityProfile = new SecurityProfile
-                        {
-                            ID = profileId,
-                            Name = profileId,
-                            Roles = new List<ApiRole>() { ApiRole.MeAddressAdmin, ApiRole.MeAdmin, ApiRole.MeCreditCardAdmin, ApiRole.MeXpAdmin, ApiRole.PasswordReset, ApiRole.Shopper }
-                        };
-
-                        context.Logger.LogInformation($"Saving security profile; Security Profile ID: {profileId}");
-                        securityProfile = await Client.SecurityProfiles.SaveAsync(profileId, securityProfile);
-                        Result.SecurityProfiles.ItemsCreated++;
-
-                        return securityProfile;
-                    }
-                    catch (Exception e)
-                    {
-                        Result.SecurityProfiles.ItemsErrored++;
-
-                        context.Logger.LogError($"{Name}: Saving security profile '{profileId}' failed.\n{e.Message}\n{e}");
-                    }
-                }
-                else
-                {
-                    Result.SecurityProfiles.ItemsErrored++;
-
-                    context.Logger.LogError($"{Name}: Get security profile '{profileId}' failed.\n{ex.Message}\n{ex}");
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Creates or updates a security profile assignment.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="profileId">The buyer/profile identifier.</param>
-        /// <returns>The <see cref="SecurityProfileAssignment"/>.</returns>
-        protected async Task CreateOrUpdateSecurityProfileAssignment(CommercePipelineExecutionContext context, string profileId)
-        {
-            try
-            {
-                var securityProfileAssignment = new SecurityProfileAssignment
-                {
-                    SecurityProfileID = profileId,
-                    BuyerID = profileId
-                };
-
-                Result.SecurityProfileAssignments.ItemsProcessed++;
-
-                context.Logger.LogInformation($"Saving security profile assignment; Security Profile ID: {profileId}, Buyer ID: {profileId}");
-                await Client.SecurityProfiles.SaveAssignmentAsync(securityProfileAssignment);
-                Result.SecurityProfileAssignments.ItemsCreated++;
-            }
-            catch (Exception e)
-            {
-                Result.SecurityProfileAssignments.ItemsErrored++;
-                context.Logger.LogError($"{Name}: Saving security profile assignment '{profileId}' failed.\n{e.Message}\n{e}");
-            }
         }
 
         /// <summary>
@@ -381,7 +139,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
         /// <param name="customer">The XC customer.</param>
         /// <param name="user">The OC user.</param>
         /// <returns>The list OC <see cref="Address"/> representing buyer user addresses.</returns>
-        protected async Task<List<Address>> CreateOrUpdateBuyerAddresses(CommercePipelineExecutionContext context, string buyerId, Customer customer, User user)
+        protected async Task<List<Address>> CreateOrUpdateBuyerAddresses(CommercePipelineExecutionContext context, string buyerId, Customer customer)
         {
             var addresses = new List<Address>();
 
@@ -469,28 +227,29 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
         /// <param name="context">The context.</param>
         /// <param name="buyerId">The OC buyer identifier.</param>
         /// <param name="user">The OC user.</param>
-        /// <param name="userGroup">The OC user group.</param>
+        /// <param name="userGroupId">The OC user group.</param>
         /// <returns></returns>
-        protected async Task CreateOrUpdateBuyerUserGroupAssignment(CommercePipelineExecutionContext context, string buyerId, User user, UserGroup userGroup)
+        protected async Task CreateOrUpdateBuyerUserGroupAssignment(CommercePipelineExecutionContext context, string buyerId, User user, string userGroupId)
         {
+            
             try
             {
                 var userGroupAssignment = new UserGroupAssignment
                 {
-                    UserGroupID = userGroup.ID,
+                    UserGroupID = userGroupId,
                     UserID = user.ID
                 };
 
                 Result.BuyerGroupAssignments.ItemsProcessed++;
 
-                context.Logger.LogInformation($"Saving buyer user group assignment; User Group ID: {userGroup.ID}, User ID: {user.ID}");
+                context.Logger.LogInformation($"Saving buyer user group assignment; User Group ID: {userGroupId}, User ID: {user.ID}");
                 await Client.UserGroups.SaveUserAssignmentAsync(buyerId, userGroupAssignment);
                 Result.BuyerGroupAssignments.ItemsCreated++;
             }
             catch (Exception e)
             {
                 Result.BuyerGroupAssignments.ItemsErrored++;
-                context.Logger.LogError($"{Name}: Saving buyer user group assignment failed; User Group ID: {userGroup.ID}, User ID: {user.ID}.\n{e.Message}\n{e}");
+                context.Logger.LogError($"{Name}: Saving buyer user group assignment failed; User Group ID: {userGroupId}, User ID: {user.ID}.\n{e.Message}\n{e}");
             }
         }
 

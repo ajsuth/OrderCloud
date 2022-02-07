@@ -7,10 +7,7 @@
     <GenerateAssemblyTitleAttribute>false</GenerateAssemblyTitleAttribute>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Minions\ExportCatalogsMinion.cs" />
-    <Compile Remove="Minions\ExportCategoriesMinion.cs" />
-    <Compile Remove="Minions\ExportCustomersMinion.cs" />
-    <Compile Remove="Minions\ExportSellableItemsMinion.cs" />
+    <Compile Remove="Pipelines\Blocks\Buyers\ProcessSiteBlock.cs" />
   </ItemGroup>
    
   <ItemGroup>
@@ -19,10 +16,6 @@
     <PackageReference Include="Sitecore.Commerce.Plugin.Inventory" Version="7.0.*" />
     <PackageReference Include="ordercloud-dotnet-catalyst" Version="1.5.*" />
     <PackageReference Include="OrderCloud.SDK" Version="0.10.5" />
-  </ItemGroup>
-   
-  <ItemGroup>
-    <Folder Include="Minions\" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

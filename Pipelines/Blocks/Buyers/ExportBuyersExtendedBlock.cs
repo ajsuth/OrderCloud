@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="ExportCatalogsBlock.cs" company="Sitecore Corporation">
+// <copyright file="ExportBuyersExtendedBlock.cs" company="Sitecore Corporation">
 //   Copyright (c) Sitecore Corporation 1999-2022
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -7,29 +7,28 @@
 using Ajsuth.Sample.OrderCloud.Engine.Models;
 using Ajsuth.Sample.OrderCloud.Engine.Pipelines.Arguments;
 using Microsoft.Extensions.Logging;
+using OrderCloud.SDK;
 using Sitecore.Commerce.Core;
-using Sitecore.Commerce.Plugin.Catalog;
 using Sitecore.Framework.Conditions;
 using Sitecore.Framework.Pipelines;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using OrderCloudClient = OrderCloud.SDK.OrderCloudClient;
 
 namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 {
-    /// <summary>Defines the asynchronous executing ExportCatalogs pipeline block</summary>
+    /// <summary>Defines the asynchronous executing ExportCustomers pipeline block</summary>
     /// <seealso cref="AsyncPipelineBlock{TInput, TOutput, TContext}" />
-    [PipelineDisplayName(OrderCloudConstants.Pipelines.Blocks.ExportCatalogs)]
-    public class ExportCatalogsBlock : AsyncPipelineBlock<ExportToOrderCloudArgument, ExportToOrderCloudArgument, CommercePipelineExecutionContext>
+    [PipelineDisplayName(OrderCloudConstants.Pipelines.Blocks.ExportCustomers)]
+    public class ExportBuyersExtendedBlock : AsyncPipelineBlock<ExportToOrderCloudArgument, ExportToOrderCloudArgument, CommercePipelineExecutionContext>
     {
         /// <summary>Gets or sets the commander.</summary>
         /// <value>The commander.</value>
         protected CommerceCommander Commander { get; set; }
 
-        /// <summary>Initializes a new instance of the <see cref="ExportCatalogsBlock" /> class.</summary>
+        /// <summary>Initializes a new instance of the <see cref="ExportBuyersExtendedBlock" /> class.</summary>
         /// <param name="commander">The commerce commander.</param>
-        public ExportCatalogsBlock(CommerceCommander commander)
+        public ExportBuyersExtendedBlock(CommerceCommander commander)
         {
             this.Commander = commander;
         }
@@ -42,35 +41,30 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
         {
             Condition.Requires(arg).IsNotNull($"{Name}: The argument can not be null");
 
-            if (!arg.ProcessSettings.ProcessCatalogs)
+            if (!arg.ProcessSettings.ProcessSites)
             {
-                context.Logger.LogInformation($"Skipping catalog export - not enabled.");
+                context.Logger.LogInformation($"Skipping site export - not enabled.");
                 return arg;
             }
 
             long itemsProcessed = 0;
 
-            var listName = OrderCloudConstants.Lists.Catalogs;
+            var exportSettings = context.CommerceContext.GetObject<ExportEntitiesArgument>();
+            var siteSettings = exportSettings.SiteSettings;
 
-            var items = await GetListIds<Catalog>(context, listName, int.MaxValue).ConfigureAwait(false);
-            var listCount = items.List.TotalItemCount;
+            context.Logger.LogInformation($"{Name}-Reviewing Site Settings|Count:{siteSettings.Count}|Environment:{context.CommerceContext.Environment.Name}");
 
-            context.Logger.LogInformation($"{Name}-Reviewing List:{listName}|Count:{listCount}|Environment:{context.CommerceContext.Environment.Name}");
-
-            if (listCount == 0)
+            if (siteSettings.Count == 0)
             {
                 return arg;
             }
 
-            itemsProcessed += listCount;
+            itemsProcessed += siteSettings.Count;
 
-            foreach (var entityId in items.EntityReferences.Select(e => e.EntityId))
+            var storefronts = siteSettings.Select(s => s.Storefront).Distinct();
+
+            foreach (var storefront in storefronts)
             {
-                if (!arg.SiteSettings.Any(p => p.Catalog.ToEntityId<Catalog>() == entityId))
-                {
-                    context.Logger.LogInformation($"{Name}-Catalog skipped: {entityId}. Environment: {context.CommerceContext.Environment.Name}");
-                }
-
                 var error = false;
 
                 var newContext = new CommercePipelineExecutionContextOptions(new CommerceContext(context.CommerceContext.Logger, context.CommerceContext.TelemetryClient)
@@ -89,40 +83,50 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
                 newContext.CommerceContext.AddObject(context.CommerceContext.GetObject<OrderCloudClient>());
                 newContext.CommerceContext.AddObject(context.CommerceContext.GetObject<ExportResult>());
+                var buyers = context.CommerceContext.GetObjects<Buyer>();
+                foreach (var buyer in buyers)
+                {
+                    newContext.CommerceContext.AddObject(buyer);
+                }
+                var securityProfiles = context.CommerceContext.GetObjects<SecurityProfile>();
+                foreach (var securityProfile in securityProfiles)
+                {
+                    newContext.CommerceContext.AddObject(securityProfile);
+                }
 
-                context.Logger.LogDebug($"{Name}-Exporting catalog: '{entityId}'. Environment: {context.CommerceContext.Environment.Name}");
-                await Commander.Pipeline<ExportCatalogsPipeline>()
+                context.Logger.LogDebug($"{Name}-Exporting buyer: '{storefront}'. Environment: {context.CommerceContext.Environment.Name}");
+                await Commander.Pipeline<ExportBuyersExtendedPipeline>()
                     .RunAsync(
-                        new ExportEntitiesArgument(entityId, arg),
+                        new ExportEntitiesArgument(storefront, arg),
                         newContext)
                     .ConfigureAwait(false);
-                
+
+                context.CommerceContext.AddUniqueObjectByType(newContext.CommerceContext.GetObject<ExportResult>());
+                buyers = newContext.CommerceContext.GetObjects<Buyer>();
+                foreach (var buyer in buyers)
+                {
+                    context.CommerceContext.AddUniqueObject(buyer);
+                }
+                securityProfiles = newContext.CommerceContext.GetObjects<SecurityProfile>();
+                foreach (var securityProfile in securityProfiles)
+                {
+                    context.CommerceContext.AddUniqueObject(securityProfile);
+                }
+
                 if (error)
                 {
                     context.Abort(
                         await context.CommerceContext.AddMessage(
                             context.GetPolicy<KnownResultCodes>().Error,
-                            OrderCloudConstants.Errors.ExportCatalogsFailed,
+                            OrderCloudConstants.Errors.ExportBuyersExtendedFailed,
                             new object[] { Name },
-                            $"{Name}: Export catalogs failed.").ConfigureAwait(false),
+                            $"{Name}: Processing Storefronts failed.").ConfigureAwait(false),
                         context);
                 }
             }
 
-            context.Logger.LogInformation($"{Name}-Exporting catalogs Completed: {(int)itemsProcessed}. Environment: {context.CommerceContext.Environment.Name}");
+            context.Logger.LogInformation($"{Name}-Processing Storefronts Completed: {(int)itemsProcessed}. Environment: {context.CommerceContext.Environment.Name}");
             return arg;
-        }
-
-        protected virtual async Task<FindEntitiesInListArgument> GetListIds<T>(CommercePipelineExecutionContext context, string listName, int take, int skip = 0)
-        {
-            var arg = new FindEntitiesInListArgument(typeof(T), listName, skip, take)
-            {
-                LoadEntities = false,
-                LoadTotalItemCount = true
-            };
-            var result = await Commander.Pipeline<FindEntitiesInListPipeline>().RunAsync(arg, context.CommerceContext.PipelineContextOptions).ConfigureAwait(false);
-
-            return result;
         }
     }
 }

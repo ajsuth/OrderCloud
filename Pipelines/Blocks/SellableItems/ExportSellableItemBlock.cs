@@ -43,9 +43,6 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
         /// <summary>The problem objects model.</summary>
         protected ProblemObjects ProblemObjects { get; set; }
 
-        /// <summary>The buyer settings.</summary>
-        protected List<CustomerExportPolicy> BuyerSettings { get; set; }
-
         /// <summary>The product settings.</summary>
         protected SellableItemExportPolicy ProductSettings { get; set; }
 
@@ -67,7 +64,6 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
             Client = context.CommerceContext.GetObject<OrderCloudClient>();
             Result = context.CommerceContext.GetObject<ExportResult>();
             ProblemObjects = context.CommerceContext.GetObject<ProblemObjects>();
-            BuyerSettings = context.CommerceContext.GetObject<ExportEntitiesArgument>().BuyerSettings;
             ProductSettings = context.CommerceContext.GetObject<ExportEntitiesArgument>().ProductSettings;
             var processSettings = context.CommerceContext.GetObject<ExportEntitiesArgument>().ProcessSettings;
 
@@ -91,12 +87,12 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
             if (!requiresVariants)
             {
-                if (ProductSettings.MultiInventory)
+                if (ProductSettings.MultiInventory && product.Inventory.Enabled)
                 {
                     // 1a. Update Inventory
                     await CreateOrUpdateProductInventoryRecords(context, sellableItem, product);
                 }
-                
+
                 return sellableItem;
             }
 
@@ -173,7 +169,11 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                     ID = productId,
                     Active = true,
                     Name = sellableItem.DisplayName,
-                    Description = sellableItem.Description
+                    Description = sellableItem.Description,
+                    Inventory = new Inventory
+                    {
+                        Enabled = false
+                    }
                 };
 
                 product.xp.Brand = sellableItem.Brand;
@@ -203,11 +203,8 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
                 if (requiresVariants)
                 {
                     // Only migrate inventory from variants (sellable items may have inventory if it was assigned prior to creating variants. We do not want to bring these inventory records across to OrderCloud).
-                    product.Inventory = new Inventory
-                    {
-                        Enabled = sellableItem.IsPhysicalItem(context),
-                        VariantLevelTracking = true
-                    };
+                    product.Inventory.Enabled = sellableItem.IsPhysicalItem(context);
+                    product.Inventory.VariantLevelTracking = true;
 
                     // Variant inventory will need to be created after variants have been generated.
                 }
@@ -220,12 +217,13 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Blocks
 
                         if (inventory != null)
                         {
-                            product.Inventory = new Inventory
-                            {
-                                Enabled = true,
-                                QuantityAvailable = inventory.Quantity
-                            };
+                            product.Inventory.Enabled = true;
+                            product.Inventory.QuantityAvailable = inventory.Quantity;
                         }
+                    }
+                    else
+                    {
+                        product.Inventory.Enabled = sellableItem.IsPhysicalItem(context) && sellableItem.HasComponent<InventoryComponent>(sellableItem.ItemVariations);
                     }
                 }
 

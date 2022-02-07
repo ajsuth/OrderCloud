@@ -54,7 +54,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Controllers
             }
 
             var command = Command<ExportToOrderCloudCommand>();
-            var result = await command.Process(CurrentContext, processSettings, (value["buyerSettings"] as IEnumerable<CustomerExportPolicy>)?.ToList(), (value["catalogSettings"] as IEnumerable<CatalogExportPolicy>)?.ToList(), value["productSettings"] as SellableItemExportPolicy).ConfigureAwait(false);
+            var result = await command.Process(CurrentContext, processSettings, (value["siteSettings"] as IEnumerable<SitePolicy>)?.ToList(), value["productSettings"] as SellableItemExportPolicy).ConfigureAwait(false);
 
             return new ObjectResult(result);
         }

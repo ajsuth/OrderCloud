@@ -18,7 +18,7 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Pipelines.Arguments
         /// </summary>
         /// <param name="entityId">The entity identifier.</param>
         public ExportEntitiesArgument(string entityId, ExportToOrderCloudArgument exportArgument)
-            : base(exportArgument?.ProcessSettings, exportArgument?.BuyerSettings, exportArgument?.CatalogSettings, exportArgument?.ProductSettings)
+            : base(exportArgument?.ProcessSettings, exportArgument?.SiteSettings, exportArgument?.ProductSettings)
         {
             Condition.Requires(entityId, nameof(entityId)).IsNotNull();
 

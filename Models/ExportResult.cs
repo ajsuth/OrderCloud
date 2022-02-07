@@ -25,6 +25,8 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Models
         public ExportObject Categories { get; set; } = new ExportObject();
         public ExportObject CategoryAssignments { get; set; } = new ExportObject();
         public ExportObject CategoryProductAssignments { get; set; } = new ExportObject();
+        public ExportObject Locales { get; set; } = new ExportObject();
+        public ExportObject LocaleAssignments { get; set; } = new ExportObject();
         public ExportObject ProductAssignments { get; set; } = new ExportObject();
         public ExportObject Products { get; set; } = new ExportObject();
         public ExportObject SecurityProfileAssignments { get; set; } = new ExportObject();

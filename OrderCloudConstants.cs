@@ -65,6 +65,16 @@ namespace Ajsuth.Sample.OrderCloud.Engine
             public const string ExportAllCategoryAssignmentsFailed = nameof(ExportAllCategoryAssignmentsFailed);
 
             /// <summary>
+            /// The export buyers failed error name.
+            /// </summary>
+            public const string ExportBuyersFailed = nameof(ExportBuyersFailed);
+
+            /// <summary>
+            /// The export buyers extended failed error name.
+            /// </summary>
+            public const string ExportBuyersExtendedFailed = nameof(ExportBuyersExtendedFailed);
+
+            /// <summary>
             /// The export catalogs failed error name.
             /// </summary>
             public const string ExportCatalogsFailed = nameof(ExportCatalogsFailed);
@@ -113,11 +123,11 @@ namespace Ajsuth.Sample.OrderCloud.Engine
             /// The invalid OrderCloud client policy error name.
             /// </summary>
             public const string InvalidOrderCloudClientPolicy = nameof(InvalidOrderCloudClientPolicy);
-            
+
             /// <summary>
-            /// The shop not found error name.
+            /// The storefront not found error name.
             /// </summary>
-            public const string ShopNotFound = nameof(ShopNotFound);
+            public const string StorefrontNotFound = nameof(StorefrontNotFound);
 
             /// <summary>
             /// The update buyer user failed error name.
@@ -161,6 +171,16 @@ namespace Ajsuth.Sample.OrderCloud.Engine
         /// </summary>
         public static class Pipelines
         {
+            /// <summary>
+            /// The export buyers pipeline name.
+            /// </summary>
+            public const string ExportBuyers = "OrderCloud.Pipeline.ExportBuyers";
+
+            /// <summary>
+            /// The export buyers extended pipeline name.
+            /// </summary>
+            public const string ExportBuyersExtended = "OrderCloud.Pipeline.ExportBuyersExtended";
+
             /// <summary>
             /// The export catalog assignments pipeline name.
             /// </summary>
@@ -215,6 +235,16 @@ namespace Ajsuth.Sample.OrderCloud.Engine
                 /// The export all category assignments pipeline block name.
                 /// </summary>
                 public const string ExportAllCategoryAssignments = "OrderCloud.Block.ExportAllCategoryAssignments";
+
+                /// <summary>
+                /// The export buyer pipeline block name.
+                /// </summary>
+                public const string ExportBuyer = "OrderCloud.Block.ExportBuyer";
+
+                /// <summary>
+                /// The export buyer extended pipeline block name.
+                /// </summary>
+                public const string ExportBuyerExtended = "OrderCloud.Block.ExportBuyerExtended";
 
                 /// <summary>
                 /// The export catalogs pipeline block name.
@@ -287,9 +317,19 @@ namespace Ajsuth.Sample.OrderCloud.Engine
                 public const string ValidateCustomer = "OrderCloud.Block.ValidateCustomer";
 
                 /// <summary>
+                /// The validate domain pipeline block name.
+                /// </summary>
+                public const string ValidateDomain = "OrderCloud.Block.ValidateDomain";
+
+                /// <summary>
                 /// The validate sellable item pipeline block name.
                 /// </summary>
                 public const string ValidateSellableItem = "OrderCloud.Block.ValidateSellableItem";
+
+                /// <summary>
+                /// The validate storefront pipeline block name.
+                /// </summary>
+                public const string ValidateStorefront = "OrderCloud.Block.ValidateStorefront";
             }
         }
     }

@@ -43,20 +43,12 @@ namespace Ajsuth.Sample.OrderCloud.Engine.Context
             return _exportResult;
         }
 
-        public CustomerExportPolicy GetBuyerSettings(string buyerId)
-        {
-            var exportSettings = this.CommerceContext.GetObject<ExportEntitiesArgument>();
-            var buyerSettings = exportSettings.BuyerSettings.FirstOrDefault(c => c.Id.ToValidOrderCloudId() == buyerId);
+        //public CatalogExportPolicy GetCatalogSettings(string catalogId)
+        //{
+        //    var exportSettings = this.CommerceContext.GetObject<ExportEntitiesArgument>();
+        //    var catalogSettings = exportSettings.CatalogSettings.FirstOrDefault(c => c.CatalogName == catalogId);
 
-            return buyerSettings;
-        }
-
-        public CatalogExportPolicy GetCatalogSettings(string catalogId)
-        {
-            var exportSettings = this.CommerceContext.GetObject<ExportEntitiesArgument>();
-            var catalogSettings = exportSettings.CatalogSettings.FirstOrDefault(c => c.CatalogName == catalogId);
-
-            return catalogSettings;
-        }
+        //    return catalogSettings;
+        //}
     }
 }
